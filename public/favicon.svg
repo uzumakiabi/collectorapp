@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+<rect width="256" height="256" fill="#ffffff"/>
+<rect x="32" y="32" width="80" height="80" rx="8" fill="#0D9488"/>
+<rect x="144" y="32" width="80" height="80" rx="8" fill="#0D9488"/>
+<rect x="32" y="144" width="80" height="80" rx="8" fill="#0D9488"/>
+<rect x="144" y="144" width="80" height="80" rx="8" fill="#0D9488"/>
+<text x="128" y="148" font-family="Arial, sans-serif" font-size="96" font-weight="bold" fill="#0D9488" text-anchor="middle" dominant-baseline="middle">CM</text>
+</svg>

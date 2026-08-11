@@ -1,0 +1,106 @@
+generator client {
+    provider = "prisma-client-js"
+    binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+    output = "/home/ubuntu/collection_manager/nextjs_space/node_modules/.prisma/client"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String   @id @default(cuid())
+  name           String?
+  email          String   @unique
+  hashedPassword String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  items          Item[]
+  categories     Category[]
+  folders        Folder[]
+}
+
+model Category {
+  id           String           @id @default(cuid())
+  name         String
+  isDefault    Boolean          @default(false)
+  userId       String
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items        Item[]
+  customFields CustomFieldDef[]
+  createdAt    DateTime         @default(now())
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model CustomFieldDef {
+  id         String   @id @default(cuid())
+  name       String
+  fieldType  String   @default("text")
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([categoryId, name])
+}
+
+model Item {
+  id           String       @id @default(cuid())
+  name         String
+  description  String?
+  price        Float?
+  condition    String?
+  categoryId   String
+  category     Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customValues Json?        @default("{}")
+  photos       ItemPhoto[]
+  folderItems  FolderItem[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([userId])
+  @@index([categoryId])
+  @@index([userId, categoryId])
+}
+
+model ItemPhoto {
+  id                String  @id @default(cuid())
+  cloudStoragePath  String
+  isPublic          Boolean @default(false)
+  contentType       String  @default("image/jpeg")
+  order             Int     @default(0)
+  itemId            String
+  item              Item    @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+}
+
+model Folder {
+  id          String       @id @default(cuid())
+  name        String
+  folderType  String       @default("CUSTOM")
+  categoryId  String?
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folderItems FolderItem[]
+  createdAt   DateTime     @default(now())
+
+  @@unique([userId, categoryId])
+  @@index([userId])
+}
+
+model FolderItem {
+  id       String @id @default(cuid())
+  folderId String
+  folder   Folder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  itemId   String
+  item     Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([folderId, itemId])
+  @@index([folderId])
+  @@index([itemId])
+}
