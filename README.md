@@ -54,7 +54,6 @@ See `.env.example` for the full list of required variables:
 | `AWS_REGION` | AWS region for S3 |
 | `AWS_BUCKET_NAME` | S3 bucket name |
 | `AWS_FOLDER_PREFIX` | Folder prefix within the bucket |
-| `ABACUSAI_API_KEY` | Abacus AI API key |
 
 ## Scripts
 
