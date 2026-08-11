@@ -1,13 +1,13 @@
 # CollectorApp
 
-A Next.js 14 web application for collecting and managing data, with authentication, cloud storage (AWS S3 / Azure Blob), and analytics.
+A Next.js 14 web application for collecting and managing data, with authentication and analytics.
 
 ## Tech Stack
 
 - **Framework:** Next.js 14 (App Router) + React 18 + TypeScript
 - **Database:** PostgreSQL via Prisma ORM
 - **Auth:** NextAuth.js (credentials)
-- **Storage:** AWS S3 and Azure Blob Storage
+- **Storage:** Images stored as base64 in PostgreSQL
 - **UI:** Tailwind CSS + shadcn/ui (Radix primitives)
 - **Charts:** Chart.js, Recharts, Plotly.js
 - **Maps:** MapLibre GL
@@ -19,7 +19,6 @@ A Next.js 14 web application for collecting and managing data, with authenticati
 - Node.js 18+
 - Yarn
 - PostgreSQL database
-- AWS credentials (for S3 storage)
 
 ### Installation
 
@@ -50,10 +49,6 @@ See `.env.example` for the full list of required variables:
 | `DATABASE_URL` | PostgreSQL connection string |
 | `NEXTAUTH_SECRET` | Secret used to sign NextAuth sessions |
 | `NEXTAUTH_URL` | Base URL of the app |
-| `AWS_PROFILE` | AWS CLI profile for S3 access |
-| `AWS_REGION` | AWS region for S3 |
-| `AWS_BUCKET_NAME` | S3 bucket name |
-| `AWS_FOLDER_PREFIX` | Folder prefix within the bucket |
 
 ## Scripts
 

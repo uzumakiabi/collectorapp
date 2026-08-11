@@ -5,7 +5,6 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import ExcelJS from 'exceljs';
-import { getFileUrl } from '@/lib/s3';
 
 export async function POST(request: Request) {
   try {
@@ -81,14 +80,7 @@ export async function POST(request: Request) {
         row[`custom_${ck}`] = cv[ck] ?? '';
       }
       if (includePhotos && item?.photos?.length > 0) {
-        const urls: string[] = [];
-        for (const photo of (item.photos ?? [])) {
-          try {
-            const url = await getFileUrl(photo.cloudStoragePath, photo.contentType, photo.isPublic);
-            urls.push(url);
-          } catch { /* skip */ }
-        }
-        row.photoUrls = urls.join('\n');
+        row.photoUrls = (item.photos ?? []).map((p: any) => p.data ?? '').filter(Boolean).join('\n');
       }
       sheet.addRow(row);
     }

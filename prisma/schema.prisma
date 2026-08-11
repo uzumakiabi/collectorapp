@@ -67,13 +67,12 @@ model Item {
 }
 
 model ItemPhoto {
-  id                String  @id @default(cuid())
-  cloudStoragePath  String
-  isPublic          Boolean @default(false)
-  contentType       String  @default("image/jpeg")
-  order             Int     @default(0)
-  itemId            String
-  item              Item    @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  id          String  @id @default(cuid())
+  data        String?
+  contentType String  @default("image/jpeg")
+  order       Int     @default(0)
+  itemId      String
+  item        Item    @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   @@index([itemId])
 }

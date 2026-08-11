@@ -4,7 +4,6 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { deleteFile } from '@/lib/s3';
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   try {
@@ -38,15 +37,8 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     const body = await request.json();
     const { name, description, price, condition, categoryId, customValues, photos, folderIds } = body;
 
-    // Delete removed photos from S3
+    // Replace photos
     if (photos) {
-      const currentPhotos = await prisma.itemPhoto.findMany({ where: { itemId: params.id } });
-      const newPaths = (photos ?? []).map((p: any) => p.cloud_storage_path);
-      for (const cp of currentPhotos) {
-        if (!newPaths.includes(cp.cloudStoragePath)) {
-          await deleteFile(cp.cloudStoragePath).catch(() => {});
-        }
-      }
       await prisma.itemPhoto.deleteMany({ where: { itemId: params.id } });
     }
 
@@ -62,8 +54,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
         ...(photos ? {
           photos: {
             create: (photos ?? []).map((p: any, idx: number) => ({
-              cloudStoragePath: p.cloud_storage_path,
-              isPublic: p.isPublic ?? false,
+              data: p.data ?? null,
               contentType: p.contentType ?? 'image/jpeg',
               order: idx,
             })),
@@ -122,11 +113,6 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
       include: { photos: true },
     });
     if (!item) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-
-    // Delete photos from S3
-    for (const photo of (item.photos ?? [])) {
-      await deleteFile(photo.cloudStoragePath).catch(() => {});
-    }
 
     await prisma.item.delete({ where: { id: params.id } });
     return NextResponse.json({ success: true });

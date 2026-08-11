@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { Edit, Trash2, ImageIcon, DollarSign } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -58,25 +57,7 @@ export function ItemGrid({ items, loading, onEdit, onDelete }: ItemGridProps) {
 }
 
 function ItemCard({ item, index, onEdit, onDelete }: { item: any; index: number; onEdit: (item: any) => void; onDelete: (id: string) => void }) {
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    const firstPhoto = item?.photos?.[0];
-    if (firstPhoto) {
-      fetch('/api/photos/url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cloud_storage_path: firstPhoto.cloudStoragePath,
-          contentType: firstPhoto.contentType ?? 'image/jpeg',
-          isPublic: firstPhoto.isPublic ?? false,
-        }),
-      })
-        .then(r => r.json())
-        .then(d => setPhotoUrl(d?.url ?? null))
-        .catch(() => {});
-    }
-  }, [item?.photos]);
+  const photoUrl = item?.photos?.[0]?.data ?? null;
 
   const condClass = CONDITIONS[item?.condition ?? ''] ?? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400';
 

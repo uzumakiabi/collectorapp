@@ -5,7 +5,6 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import PDFDocument from 'pdfkit';
-import { getFileUrl } from '@/lib/s3';
 
 export async function POST(request: Request) {
   try {
@@ -34,19 +33,6 @@ export async function POST(request: Request) {
         include: { photos: { orderBy: { order: 'asc' } }, category: true },
         orderBy: { createdAt: 'desc' },
       });
-    }
-
-    // Get photo URLs if needed
-    let photoUrls: Record<string, string> = {};
-    if (includePhotos) {
-      for (const item of (items ?? [])) {
-        for (const photo of (item?.photos ?? [])) {
-          try {
-            const url = await getFileUrl(photo.cloudStoragePath, photo.contentType, photo.isPublic);
-            photoUrls[photo.id] = url;
-          } catch { /* skip */ }
-        }
-      }
     }
 
     const doc = new PDFDocument({ margin: 40, size: 'A4' });
@@ -96,8 +82,7 @@ export async function POST(request: Request) {
 
       const cells: string[] = [];
       if (includePhotos) {
-        const url = item?.photos?.[0] ? photoUrls[item.photos[0].id] : '';
-        cells.push(url ? 'Photo' : '');
+        cells.push(item?.photos?.[0]?.data ? 'Photo' : '');
       }
       cells.push(
         item?.name ?? '',
@@ -106,7 +91,13 @@ export async function POST(request: Request) {
         item?.price != null ? '$' + Number(item.price).toFixed(2) : '-',
         (item?.description ?? '') + (customStr ? `\n${customStr}` : '')
       );
+      const rowY = doc.y;
       drawRow(cells, false);
+      if (includePhotos && item?.photos?.[0]?.data) {
+        try {
+          doc.image(item.photos[0].data, startX + 4, rowY + 2, { width: 60, height: 60 });
+        } catch { /* skip invalid image */ }
+      }
     }
 
     doc.end();

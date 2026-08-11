@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Camera, Trash2, Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { fileToBase64 } from '@/lib/image';
 
 interface ItemModalProps {
   item: any;
@@ -18,9 +19,8 @@ const CONDITIONS = ['Mint', 'Near Mint', 'Good', 'Fair', 'Poor'];
 interface TempPhoto {
   file?: File;
   objectUrl?: string;
-  cloud_storage_path?: string;
+  data?: string;
   contentType?: string;
-  isPublic?: boolean;
   existingUrl?: string;
 }
 
@@ -42,24 +42,12 @@ export function ItemModal({ item, categories, folders, onClose, onSaved, default
   // Load existing photos
   useEffect(() => {
     if (item?.photos?.length) {
-      const loadPhotos = async () => {
-        const loaded: TempPhoto[] = [];
-        for (const p of (item.photos ?? [])) {
-          try {
-            const res = await fetch('/api/photos/url', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ cloud_storage_path: p.cloudStoragePath, contentType: p.contentType, isPublic: p.isPublic }),
-            });
-            const d = await res.json();
-            loaded.push({ cloud_storage_path: p.cloudStoragePath, contentType: p.contentType, isPublic: p.isPublic, existingUrl: d?.url });
-          } catch {
-            loaded.push({ cloud_storage_path: p.cloudStoragePath, contentType: p.contentType, isPublic: p.isPublic });
-          }
-        }
-        setPhotos(loaded);
-      };
-      loadPhotos();
+      const loaded: TempPhoto[] = (item.photos ?? []).map((p: any) => ({
+        data: p.data ?? undefined,
+        contentType: p.contentType ?? 'image/jpeg',
+        existingUrl: p.data ?? undefined,
+      }));
+      setPhotos(loaded);
     }
   }, [item]);
 
@@ -67,14 +55,20 @@ export function ItemModal({ item, categories, folders, onClose, onSaved, default
   const selectedCategory = (categories ?? []).find((c: any) => c?.id === categoryId);
   const customFields = selectedCategory?.customFields ?? [];
 
-  const handleAddPhotos = (files: FileList | null) => {
+  const handleAddPhotos = async (files: FileList | null) => {
     if (!files) return;
     const remaining = 3 - (photos?.length ?? 0);
-    const newPhotos = Array.from(files).slice(0, remaining).map((file: File) => ({
-      file,
-      objectUrl: URL.createObjectURL(file),
-      contentType: file.type || 'image/jpeg',
-    }));
+    const selected = Array.from(files).slice(0, remaining);
+    const newPhotos: TempPhoto[] = [];
+    for (const file of selected) {
+      const objectUrl = URL.createObjectURL(file);
+      try {
+        const data = await fileToBase64(file);
+        newPhotos.push({ file, objectUrl, data, contentType: file.type || 'image/jpeg' });
+      } catch {
+        newPhotos.push({ file, objectUrl, contentType: file.type || 'image/jpeg' });
+      }
+    }
     setPhotos(prev => [...(prev ?? []), ...newPhotos]);
   };
 
@@ -92,26 +86,11 @@ export function ItemModal({ item, categories, folders, onClose, onSaved, default
     if (!categoryId) { toast.error('Category is required'); return; }
     setSaving(true);
     try {
-      // Upload new photos to S3
+      // Collect photo data (base64)
       const uploadedPhotos: any[] = [];
       for (const photo of (photos ?? [])) {
-        if (photo.cloud_storage_path) {
-          // Already uploaded
-          uploadedPhotos.push({ cloud_storage_path: photo.cloud_storage_path, contentType: photo.contentType, isPublic: photo.isPublic ?? false });
-        } else if (photo.file) {
-          // Upload new photo
-          const presignRes = await fetch('/api/upload/presigned', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fileName: photo.file.name, contentType: photo.file.type || 'image/jpeg', isPublic: false }),
-          });
-          const { uploadUrl, cloud_storage_path } = await presignRes.json();
-          await fetch(uploadUrl, {
-            method: 'PUT',
-            headers: { 'Content-Type': photo.file.type || 'image/jpeg' },
-            body: photo.file,
-          });
-          uploadedPhotos.push({ cloud_storage_path, contentType: photo.file.type || 'image/jpeg', isPublic: false });
+        if (photo.data) {
+          uploadedPhotos.push({ data: photo.data, contentType: photo.contentType ?? 'image/jpeg' });
         }
       }
 

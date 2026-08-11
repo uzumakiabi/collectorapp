@@ -79,8 +79,7 @@ export async function POST(request: Request) {
         customValues: customValues ?? {},
         photos: {
           create: (photos ?? []).map((p: any, idx: number) => ({
-            cloudStoragePath: p.cloud_storage_path,
-            isPublic: p.isPublic ?? false,
+            data: p.data ?? null,
             contentType: p.contentType ?? 'image/jpeg',
             order: idx,
           })),

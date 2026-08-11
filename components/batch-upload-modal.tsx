@@ -3,12 +3,14 @@
 import { useState, useRef } from 'react';
 import { X, ChevronLeft, ChevronRight, Camera, Loader2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
+import { fileToBase64 } from '@/lib/image';
 
 const CONDITIONS = ['Mint', 'Near Mint', 'Good', 'Fair', 'Poor'];
 
 interface BatchItem {
   file: File;
   objectUrl: string;
+  data?: string;
   name: string;
   description: string;
   price: string;
@@ -25,19 +27,29 @@ export function BatchUploadModal({ categories, onClose, onDone }: { categories: 
   const [started, setStarted] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const handleSelectFiles = (files: FileList | null) => {
+  const handleSelectFiles = async (files: FileList | null) => {
     if (!files) return;
-    const arr = Array.from(files).slice(0, 30).map((file: File) => ({
-      file,
-      objectUrl: URL.createObjectURL(file),
-      name: '',
-      description: '',
-      price: '',
-      condition: '',
-      categoryId: '',
-      customValues: {},
-      saved: false,
-    }));
+    const selected = Array.from(files).slice(0, 30);
+    const arr: BatchItem[] = [];
+    for (const file of selected) {
+      const objectUrl = URL.createObjectURL(file);
+      let data: string | undefined;
+      try {
+        data = await fileToBase64(file);
+      } catch { /* keep data undefined */ }
+      arr.push({
+        file,
+        objectUrl,
+        data,
+        name: '',
+        description: '',
+        price: '',
+        condition: '',
+        categoryId: '',
+        customValues: {},
+        saved: false,
+      });
+    }
     setItems(arr);
     setCurrentIdx(0);
     setStarted(true);
@@ -62,19 +74,6 @@ export function BatchUploadModal({ categories, onClose, onDone }: { categories: 
     if (!current?.categoryId) { toast.error('Category is required'); return; }
     setSaving(true);
     try {
-      // Upload photo
-      const presignRes = await fetch('/api/upload/presigned', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileName: current.file.name, contentType: current.file.type || 'image/jpeg', isPublic: false }),
-      });
-      const { uploadUrl, cloud_storage_path } = await presignRes.json();
-      await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': current.file.type || 'image/jpeg' },
-        body: current.file,
-      });
-
       // Create item
       const res = await fetch('/api/items', {
         method: 'POST',
@@ -86,7 +85,7 @@ export function BatchUploadModal({ categories, onClose, onDone }: { categories: 
           condition: current.condition || null,
           categoryId: current.categoryId,
           customValues: current.customValues ?? {},
-          photos: [{ cloud_storage_path, contentType: current.file.type || 'image/jpeg', isPublic: false }],
+          photos: [{ data: current.data ?? null, contentType: current.file.type || 'image/jpeg' }],
         }),
       });
 
