@@ -9,8 +9,9 @@ import { BatchUploadModal } from './batch-upload-modal';
 import { ExportModal } from './export-modal';
 import { CategoryManager } from './category-manager';
 import {
-  Package, Plus, Upload, Download, Search, SortAsc, SortDesc, LogOut, Menu, X, Settings, LayoutGrid
+  Package, Plus, Upload, Download, Search, SortAsc, SortDesc, LogOut, Menu, X, Settings, LayoutGrid, KeyRound
 } from 'lucide-react';
+import Link from 'next/link';
 import { toast } from 'sonner';
 
 export function DashboardLayout() {
@@ -170,6 +171,9 @@ export function DashboardLayout() {
               <button onClick={() => setShowCategories(true)} className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground transition" title="Manage Categories">
                 <Settings className="w-5 h-5" />
               </button>
+              <Link href="/change-password" className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground transition" title="Change Password">
+                <KeyRound className="w-5 h-5" />
+              </Link>
               <button onClick={() => signOut()} className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground transition" title="Sign Out">
                 <LogOut className="w-5 h-5" />
               </button>

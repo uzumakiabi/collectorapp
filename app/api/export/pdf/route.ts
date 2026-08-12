@@ -6,6 +6,16 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import PDFDocument from 'pdfkit';
 
+function dataUrlToBuffer(dataUrl: string): Buffer | null {
+  try {
+    const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+    if (!match) return null;
+    return Buffer.from(match[2], 'base64');
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -40,38 +50,41 @@ export async function POST(request: Request) {
     doc.on('data', (chunk: Buffer) => chunks.push(chunk));
     const done = new Promise<void>((resolve) => doc.on('end', resolve));
 
+    const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+    const colWidths = includePhotos ? [70, 120, 80, 60, 60, pageWidth - 390] : [120, 80, 60, 60, pageWidth - 320];
+    const headers = includePhotos
+      ? ['Photo', 'Name', 'Category', 'Condition', 'Price', 'Description']
+      : ['Name', 'Category', 'Condition', 'Price', 'Description'];
+
     // Header
     doc.fillColor('#0d9488').fontSize(24).font('Helvetica-Bold').text('My Collection', { continued: false });
     doc.moveDown(0.2);
     doc.fillColor('#666666').fontSize(12).font('Helvetica').text(`Exported ${(items ?? []).length} items`);
     doc.moveDown(0.5);
 
-    // Table header
+    const rowHeight = 24;
     const startX = doc.page.margins.left;
-    const colWidths = includePhotos ? [70, 110, 80, 60, 60, 120] : [110, 80, 60, 60, 120];
-    const headers = includePhotos
-      ? ['Photo', 'Name', 'Category', 'Condition', 'Price', 'Description']
-      : ['Name', 'Category', 'Condition', 'Price', 'Description'];
 
-    const drawRow = (cells: string[], isHeader: boolean) => {
-      let x = startX;
-      const rowHeight = 20;
+    const drawHeader = () => {
       const y = doc.y;
-      if (isHeader) {
-        doc.rect(startX, y, doc.page.width - startX - doc.page.margins.right, rowHeight).fill('#0d9488');
-      }
-      cells.forEach((cell, i) => {
-        const w = colWidths[i];
-        doc.fillColor(isHeader ? '#ffffff' : '#333333')
-          .font(isHeader ? 'Helvetica-Bold' : 'Helvetica')
-          .fontSize(9)
-          .text(cell, x + 4, y + 6, { width: w - 8, height: rowHeight - 8, ellipsis: true });
-        x += w;
+      doc.rect(startX, y, pageWidth, rowHeight).fill('#0d9488');
+      let x = startX;
+      headers.forEach((h, i) => {
+        doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(9)
+          .text(h, x + 4, y + 8, { width: colWidths[i] - 8 });
+        x += colWidths[i];
       });
-      doc.moveDown(0.1);
+      doc.y = y + rowHeight;
     };
 
-    drawRow(headers, true);
+    const ensureSpace = (needed: number) => {
+      if (doc.y + needed > doc.page.height - doc.page.margins.bottom) {
+        doc.addPage();
+        drawHeader();
+      }
+    };
+
+    drawHeader();
 
     for (const item of (items ?? [])) {
       const customVals = item?.customValues ?? {};
@@ -79,25 +92,44 @@ export async function POST(request: Request) {
         .filter(([, v]: any) => v)
         .map(([k, v]: any) => `${k}: ${v}`)
         .join(' | ');
+      const description = ((item?.description ?? '') + (customStr ? `\n${customStr}` : '')).trim();
 
-      const cells: string[] = [];
-      if (includePhotos) {
-        cells.push(item?.photos?.[0]?.data ? 'Photo' : '');
-      }
-      cells.push(
+      const photoBuf = includePhotos && item?.photos?.[0]?.data
+        ? dataUrlToBuffer(item.photos[0].data)
+        : null;
+
+      // Estimate row height based on description length
+      const descLines = Math.max(1, Math.ceil(description.length / 40));
+      const rowH = Math.max(rowHeight, 20 + descLines * 10, photoBuf ? 64 : rowHeight);
+
+      ensureSpace(rowH);
+      const y = doc.y;
+
+      // Row background
+      doc.rect(startX, y, pageWidth, rowH).fill('#f8fafc');
+
+      let x = startX;
+      const cells = [
+        photoBuf ? '' : '',
         item?.name ?? '',
         item?.category?.name ?? '',
         item?.condition ?? '-',
         item?.price != null ? '$' + Number(item.price).toFixed(2) : '-',
-        (item?.description ?? '') + (customStr ? `\n${customStr}` : '')
-      );
-      const rowY = doc.y;
-      drawRow(cells, false);
-      if (includePhotos && item?.photos?.[0]?.data) {
+        description,
+      ];
+      cells.forEach((cell, i) => {
+        doc.fillColor('#333333').font('Helvetica').fontSize(9)
+          .text(cell, x + 4, y + 6, { width: colWidths[i] - 8 });
+        x += colWidths[i];
+      });
+
+      if (photoBuf) {
         try {
-          doc.image(item.photos[0].data, startX + 4, rowY + 2, { width: 60, height: 60 });
+          doc.image(photoBuf, startX + 4, y + 2, { width: 60, height: 60, fit: [60, 60] });
         } catch { /* skip invalid image */ }
       }
+
+      doc.y = y + rowH;
     }
 
     doc.end();
