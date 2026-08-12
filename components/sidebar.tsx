@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Package, FolderOpen, FolderPlus, Trash2, ChevronDown, ChevronRight, Layers, X } from 'lucide-react';
+import { Package, FolderOpen, FolderPlus, Trash2, ChevronDown, ChevronRight, Layers, X, BarChart3, Settings } from 'lucide-react';
 
 interface SidebarProps {
   categories: any[];
@@ -13,9 +13,12 @@ interface SidebarProps {
   onSelectAll: () => void;
   onCreateFolder: (name: string) => void;
   onDeleteFolder: (id: string) => void;
+  onClose: () => void;
+  onOpenDashboard: () => void;
+  onOpenCategories: () => void;
 }
 
-export function Sidebar({ categories, folders, selectedCategoryId, selectedFolderId, onSelectFolder, onSelectCategory, onSelectAll, onCreateFolder, onDeleteFolder }: SidebarProps) {
+export function Sidebar({ categories, folders, selectedCategoryId, selectedFolderId, onSelectFolder, onSelectCategory, onSelectAll, onCreateFolder, onDeleteFolder, onClose, onOpenDashboard, onOpenCategories }: SidebarProps) {
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [catOpen, setCatOpen] = useState(true);
@@ -35,10 +38,10 @@ export function Sidebar({ categories, folders, selectedCategoryId, selectedFolde
   return (
     <div className="h-full bg-card border-r border-border flex flex-col">
       <div className="p-4 border-b border-border">
-        <div className="flex items-center gap-2">
+        <button onClick={onClose} className="w-full flex items-center gap-2 text-left">
           <Package className="w-5 h-5 text-teal-600" />
           <span className="font-display font-bold text-foreground">Collections</span>
-        </div>
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-2 space-y-1">
@@ -51,6 +54,20 @@ export function Sidebar({ categories, folders, selectedCategoryId, selectedFolde
           }`}>
           <Layers className="w-4 h-4" />
           All Items
+        </button>
+
+        {/* Dashboard */}
+        <button onClick={onOpenDashboard}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition">
+          <BarChart3 className="w-4 h-4" />
+          Dashboard
+        </button>
+
+        {/* Manage Categories */}
+        <button onClick={onOpenCategories}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-muted transition">
+          <Settings className="w-4 h-4" />
+          Manage Categories
         </button>
 
         {/* Categories */}

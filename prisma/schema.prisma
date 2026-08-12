@@ -13,6 +13,8 @@ model User {
   name             String?
   email            String    @unique
   hashedPassword   String
+  bio              String?
+  avatar           String?
   currency         String    @default("USD")
   onboarded        Boolean   @default(true)
   resetToken       String?   @unique
