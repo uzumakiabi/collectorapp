@@ -7,6 +7,7 @@ const nextConfig = {
   productionBrowserSourceMaps: false,
   experimental: {
     outputFileTracingRoot: path.join(__dirname, '../'),
+    serverComponentsExternalPackages: ['pdfkit', 'fontkit', 'png-js', 'linebreak'],
   },
   eslint: {
     ignoreDuringBuilds: true,
