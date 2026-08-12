@@ -13,6 +13,7 @@ import { CategoryManager } from './category-manager';
 import {
   Package, Plus, Upload, Download, Search, SortAsc, SortDesc, LogOut, Menu, X, LayoutGrid, BarChart3, User
 } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -24,6 +25,7 @@ export function DashboardLayout() {
   const [categories, setCategories] = useState<any[]>([]);
   const [folders, setFolders] = useState<any[]>([]);
   const [currency, setCurrency] = useState('USD');
+  const [avatar, setAvatar] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
@@ -81,6 +83,7 @@ export function DashboardLayout() {
           const res = await fetch('/api/user');
           const user = await res.json();
           if (user?.currency) setCurrency(user.currency);
+          if (user?.avatar) setAvatar(user.avatar);
           if (user?.onboarded === false) {
             router.replace('/onboarding');
           }
@@ -197,8 +200,12 @@ export function DashboardLayout() {
               </div>
             </div>
             <div className="flex items-center gap-1.5 sm:gap-2">
-              <Link href="/profile" className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground transition" title="Profile">
-                <User className="w-5 h-5" />
+              <Link href="/profile" className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden border border-border hover:ring-2 hover:ring-teal-600/30 transition shrink-0" title="Profile">
+                {avatar ? (
+                  <Image src={`/avatars/${avatar}`} alt="Profile" fill className="object-cover" />
+                ) : (
+                  <User className="w-5 h-5 m-auto text-muted-foreground" />
+                )}
               </Link>
               <button onClick={() => signOut()} className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground transition" title="Sign Out">
                 <LogOut className="w-5 h-5" />

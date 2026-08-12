@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Package, Lock, Eye, EyeOff, Loader2, ArrowLeft, User, Moon, Sun, Check } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
 import { CURRENCY_LIST } from '@/lib/currency';
 
-const AVATAR_OPTIONS = ['🦊', '🐱', '🐶', '🦁', '🐼', '🦉', '🐸', '🐙', '🦄', '🐯'];
+const AVATAR_OPTIONS = Array.from({ length: 10 }, (_, i) => `avatar-${i + 1}.png`);
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -165,17 +166,16 @@ export default function ProfilePage() {
           </div>
           <div>
             <label className="text-sm font-medium text-foreground mb-2 block">Avatar</label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-3">
               {AVATAR_OPTIONS.map(a => (
                 <button key={a} type="button" onClick={() => setAvatar(a)}
-                  className={`w-11 h-11 rounded-full flex items-center justify-center text-xl transition border-2 ${
-                    avatar === a ? 'border-teal-600 bg-teal-50 dark:bg-teal-900/20' : 'border-border hover:border-muted-foreground'
+                  className={`w-16 h-16 rounded-full overflow-hidden transition border-2 ${
+                    avatar === a ? 'border-teal-600 ring-2 ring-teal-600/30' : 'border-border hover:border-muted-foreground'
                   }`}>
-                  {a}
+                  <Image src={`/avatars/${a}`} alt="Avatar" width={64} height={64} className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground mt-2">Custom avatars coming soon.</p>
           </div>
           <button type="submit" disabled={savingProfile}
             className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition disabled:opacity-50 inline-flex items-center justify-center gap-2">
