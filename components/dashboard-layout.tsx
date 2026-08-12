@@ -6,6 +6,7 @@ import { Sidebar } from './sidebar';
 import { ItemGrid } from './item-grid';
 import { ItemModal } from './item-modal';
 import { ItemViewModal } from './item-view-modal';
+import { DashboardWidget } from './dashboard-widget';
 import { BatchUploadModal } from './batch-upload-modal';
 import { ExportModal } from './export-modal';
 import { CategoryManager } from './category-manager';
@@ -289,9 +290,12 @@ export function DashboardLayout() {
           </div>
         </div>
 
-        {/* Grid */}
+        {/* Dashboard + Grid */}
         <div className="flex-1 px-4 py-4">
-          <div className="max-w-[1200px] mx-auto w-full">
+          <div className="max-w-[1200px] mx-auto w-full space-y-6">
+            {!selectedCategoryId && !selectedFolderId && (
+              <DashboardWidget currency={currency} />
+            )}
             <ItemGrid items={items} loading={loading} onEdit={handleEditItem} onDelete={handleDeleteItem} onView={handleViewItem} currency={currency} />
           </div>
         </div>
