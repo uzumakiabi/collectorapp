@@ -114,7 +114,7 @@ export async function POST(request: Request) {
 
       let x = startX;
       const cells = [
-        photoBuf ? '' : '',
+        ...(includePhotos ? [photoBuf ? '' : ''] : []),
         item?.name ?? '',
         item?.category?.name ?? '',
         item?.condition ?? '-',
