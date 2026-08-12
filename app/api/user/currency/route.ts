@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { CURRENCIES, convertPrice } from '@/lib/currency';
+import { CURRENCIES, convertPriceLive } from '@/lib/currency';
 
 export async function POST(request: Request) {
   try {
@@ -22,11 +22,11 @@ export async function POST(request: Request) {
 
     const oldCurrency = user.currency;
     if (oldCurrency !== currency) {
-      // Convert all item prices from old currency to new currency
+      // Convert all item prices from old currency to new currency using live rates
       const items = await prisma.item.findMany({ where: { userId }, select: { id: true, price: true } });
       for (const item of items) {
         if (item.price != null) {
-          const newPrice = convertPrice(item.price, oldCurrency, currency);
+          const newPrice = await convertPriceLive(item.price, oldCurrency, currency);
           await prisma.item.update({
             where: { id: item.id },
             data: { price: Math.round(newPrice * 100) / 100 },
