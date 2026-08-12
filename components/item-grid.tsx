@@ -1,7 +1,8 @@
 'use client';
 
-import { Edit, Trash2, ImageIcon, DollarSign } from 'lucide-react';
+import { Edit, Trash2, ImageIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { getCurrencySymbol } from '@/lib/currency';
 
 const CONDITIONS: Record<string, string> = {
   'Mint': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
@@ -16,9 +17,10 @@ interface ItemGridProps {
   loading: boolean;
   onEdit: (item: any) => void;
   onDelete: (id: string) => void;
+  currency?: string;
 }
 
-export function ItemGrid({ items, loading, onEdit, onDelete }: ItemGridProps) {
+export function ItemGrid({ items, loading, onEdit, onDelete, currency = 'USD' }: ItemGridProps) {
   if (loading) {
     return (
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
@@ -50,14 +52,15 @@ export function ItemGrid({ items, loading, onEdit, onDelete }: ItemGridProps) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
       {(items ?? []).map((item: any, idx: number) => (
-        <ItemCard key={item?.id ?? idx} item={item} index={idx} onEdit={onEdit} onDelete={onDelete} />
+        <ItemCard key={item?.id ?? idx} item={item} index={idx} onEdit={onEdit} onDelete={onDelete} currency={currency} />
       ))}
     </div>
   );
 }
 
-function ItemCard({ item, index, onEdit, onDelete }: { item: any; index: number; onEdit: (item: any) => void; onDelete: (id: string) => void }) {
+function ItemCard({ item, index, onEdit, onDelete, currency }: { item: any; index: number; onEdit: (item: any) => void; onDelete: (id: string) => void; currency?: string }) {
   const photoUrl = item?.photos?.[0]?.data ?? null;
+  const symbol = getCurrencySymbol(currency ?? 'USD');
 
   const condClass = CONDITIONS[item?.condition ?? ''] ?? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400';
 
@@ -103,7 +106,7 @@ function ItemCard({ item, index, onEdit, onDelete }: { item: any; index: number;
         </div>
         {item?.price != null && (
           <div className="flex items-center gap-1 mt-1.5 text-sm font-mono font-medium text-foreground">
-            <DollarSign className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-muted-foreground">{symbol}</span>
             {Number(item.price).toFixed(2)}
           </div>
         )}

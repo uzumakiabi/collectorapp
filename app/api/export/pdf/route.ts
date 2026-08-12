@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { getCurrencySymbol } from '@/lib/currency';
 import PDFDocument from 'pdfkit';
 
 function dataUrlToBuffer(dataUrl: string): Buffer | null {
@@ -22,6 +23,9 @@ export async function POST(request: Request) {
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const userId = (session.user as any).id;
     const { categoryId, folderId, includePhotos } = await request.json();
+
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { currency: true } });
+    const symbol = getCurrencySymbol(user?.currency ?? 'USD');
 
     const where: any = { userId };
     if (categoryId) where.categoryId = categoryId;
@@ -114,7 +118,7 @@ export async function POST(request: Request) {
         item?.name ?? '',
         item?.category?.name ?? '',
         item?.condition ?? '-',
-        item?.price != null ? '$' + Number(item.price).toFixed(2) : '-',
+        item?.price != null ? symbol + Number(item.price).toFixed(2) : '-',
         description,
       ];
       cells.forEach((cell, i) => {

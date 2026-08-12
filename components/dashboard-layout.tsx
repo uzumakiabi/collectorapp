@@ -9,16 +9,20 @@ import { BatchUploadModal } from './batch-upload-modal';
 import { ExportModal } from './export-modal';
 import { CategoryManager } from './category-manager';
 import {
-  Package, Plus, Upload, Download, Search, SortAsc, SortDesc, LogOut, Menu, X, Settings, LayoutGrid, KeyRound
+  Package, Plus, Upload, Download, Search, SortAsc, SortDesc, LogOut, Menu, X, Settings, LayoutGrid, KeyRound, ChevronDown
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { CURRENCY_LIST, getCurrencySymbol } from '@/lib/currency';
 
 export function DashboardLayout() {
   const { data: session, status } = useSession() || {};
+  const router = useRouter();
   const [items, setItems] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [folders, setFolders] = useState<any[]>([]);
+  const [currency, setCurrency] = useState('USD');
   const [loading, setLoading] = useState(true);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
@@ -66,6 +70,41 @@ export function DashboardLayout() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
   useEffect(() => { fetchItems(); }, [fetchItems]);
+
+  useEffect(() => {
+    if (status === 'authenticated') {
+      (async () => {
+        try {
+          const res = await fetch('/api/user');
+          const user = await res.json();
+          if (user?.currency) setCurrency(user.currency);
+          if (user?.onboarded === false) {
+            router.replace('/onboarding');
+          }
+        } catch { /* silent */ }
+      })();
+    }
+  }, [status, router]);
+
+  const handleCurrencyChange = async (code: string) => {
+    if (code === currency) return;
+    try {
+      const res = await fetch('/api/user/currency', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currency: code }),
+      });
+      if (!res.ok) {
+        toast.error('Failed to change currency');
+        return;
+      }
+      setCurrency(code);
+      toast.success('Currency changed');
+      fetchItems();
+    } catch {
+      toast.error('Failed to change currency');
+    }
+  };
 
   const handleDeleteItem = async (id: string) => {
     if (!confirm('Delete this item?')) return;
@@ -168,6 +207,19 @@ export function DashboardLayout() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <div className="relative">
+                <select
+                  value={currency}
+                  onChange={e => handleCurrencyChange(e.target.value)}
+                  className="appearance-none pl-2 pr-7 py-1.5 rounded-lg border border-input bg-background text-sm font-medium text-foreground focus:ring-2 focus:ring-primary/30 outline-none cursor-pointer"
+                  title="Currency"
+                >
+                  {CURRENCY_LIST.map(c => (
+                    <option key={c.code} value={c.code}>{c.symbol} {c.code}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+              </div>
               <button onClick={() => setShowCategories(true)} className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground transition" title="Manage Categories">
                 <Settings className="w-5 h-5" />
               </button>
@@ -234,7 +286,7 @@ export function DashboardLayout() {
         {/* Grid */}
         <div className="flex-1 px-4 py-4">
           <div className="max-w-[1200px] mx-auto w-full">
-            <ItemGrid items={items} loading={loading} onEdit={handleEditItem} onDelete={handleDeleteItem} />
+            <ItemGrid items={items} loading={loading} onEdit={handleEditItem} onDelete={handleDeleteItem} currency={currency} />
           </div>
         </div>
       </div>

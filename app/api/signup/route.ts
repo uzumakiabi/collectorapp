@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     }
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
-      data: { email, hashedPassword, name: name ?? '' },
+      data: { email, hashedPassword, name: name ?? '', onboarded: false },
     });
 
     // Create default categories + auto-folders for new user

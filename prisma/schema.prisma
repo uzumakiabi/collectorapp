@@ -13,6 +13,8 @@ model User {
   name             String?
   email            String    @unique
   hashedPassword   String
+  currency         String    @default("USD")
+  onboarded        Boolean   @default(true)
   resetToken       String?   @unique
   resetTokenExpiry DateTime?
   createdAt        DateTime  @default(now())

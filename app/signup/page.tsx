@@ -35,7 +35,7 @@ export default function SignupPage() {
       if (loginRes?.error) {
         setError('Account created, but login failed. Please sign in.');
       } else {
-        router.replace('/');
+        router.replace('/onboarding');
       }
     } catch {
       setError('Something went wrong');

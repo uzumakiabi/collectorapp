@@ -123,12 +123,10 @@ export function CategoryManager({ categories, onClose }: { categories: any[]; on
                   {cat?.name ?? ''}
                   <span className="text-xs text-muted-foreground">({cat?._count?.items ?? 0} items)</span>
                 </button>
-                {!cat?.isDefault && (
-                  <button onClick={() => handleDeleteCategory(cat?.id)}
-                    className="p-1 text-muted-foreground hover:text-red-500 transition">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
+                <button onClick={() => handleDeleteCategory(cat?.id)}
+                  className="p-1 text-muted-foreground hover:text-red-500 transition">
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
 
               {expandedCatId === cat?.id && (
