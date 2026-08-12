@@ -153,7 +153,7 @@ export function ItemModal({ item, categories, folders, onClose, onSaved, default
                 </button>
               )}
             </div>
-            <input ref={fileRef} type="file" accept="image/*" capture="environment" multiple onChange={e => handleAddPhotos(e.target.files)} className="hidden" />
+            <input ref={fileRef} type="file" accept="image/*" multiple onChange={e => handleAddPhotos(e.target.files)} className="hidden" />
           </div>
 
           {/* Name */}
