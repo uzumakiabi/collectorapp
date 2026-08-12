@@ -1,6 +1,6 @@
 'use client';
 
-import { Edit, Trash2, ImageIcon } from 'lucide-react';
+import { Edit, Trash2, ImageIcon, Eye } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getCurrencySymbol } from '@/lib/currency';
 
@@ -17,10 +17,11 @@ interface ItemGridProps {
   loading: boolean;
   onEdit: (item: any) => void;
   onDelete: (id: string) => void;
+  onView: (item: any) => void;
   currency?: string;
 }
 
-export function ItemGrid({ items, loading, onEdit, onDelete, currency = 'USD' }: ItemGridProps) {
+export function ItemGrid({ items, loading, onEdit, onDelete, onView, currency = 'USD' }: ItemGridProps) {
   if (loading) {
     return (
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
@@ -52,13 +53,13 @@ export function ItemGrid({ items, loading, onEdit, onDelete, currency = 'USD' }:
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
       {(items ?? []).map((item: any, idx: number) => (
-        <ItemCard key={item?.id ?? idx} item={item} index={idx} onEdit={onEdit} onDelete={onDelete} currency={currency} />
+        <ItemCard key={item?.id ?? idx} item={item} index={idx} onEdit={onEdit} onDelete={onDelete} onView={onView} currency={currency} />
       ))}
     </div>
   );
 }
 
-function ItemCard({ item, index, onEdit, onDelete, currency }: { item: any; index: number; onEdit: (item: any) => void; onDelete: (id: string) => void; currency?: string }) {
+function ItemCard({ item, index, onEdit, onDelete, onView, currency }: { item: any; index: number; onEdit: (item: any) => void; onDelete: (id: string) => void; onView: (item: any) => void; currency?: string }) {
   const photoUrl = item?.photos?.[0]?.data ?? null;
   const symbol = getCurrencySymbol(currency ?? 'USD');
 
@@ -82,10 +83,13 @@ function ItemCard({ item, index, onEdit, onDelete, currency }: { item: any; inde
         )}
         {/* Hover actions */}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
-          <button onClick={() => onEdit(item)} className="p-2 bg-white rounded-full shadow hover:bg-gray-100 transition">
+          <button onClick={() => onView(item)} className="p-2 bg-white rounded-full shadow hover:bg-gray-100 transition" title="View">
+            <Eye className="w-4 h-4 text-gray-700" />
+          </button>
+          <button onClick={() => onEdit(item)} className="p-2 bg-white rounded-full shadow hover:bg-gray-100 transition" title="Edit">
             <Edit className="w-4 h-4 text-gray-700" />
           </button>
-          <button onClick={() => onDelete(item?.id)} className="p-2 bg-white rounded-full shadow hover:bg-red-50 transition">
+          <button onClick={() => onDelete(item?.id)} className="p-2 bg-white rounded-full shadow hover:bg-red-50 transition" title="Delete">
             <Trash2 className="w-4 h-4 text-red-500" />
           </button>
         </div>

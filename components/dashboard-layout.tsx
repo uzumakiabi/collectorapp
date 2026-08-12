@@ -5,6 +5,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { Sidebar } from './sidebar';
 import { ItemGrid } from './item-grid';
 import { ItemModal } from './item-modal';
+import { ItemViewModal } from './item-view-modal';
 import { BatchUploadModal } from './batch-upload-modal';
 import { ExportModal } from './export-modal';
 import { CategoryManager } from './category-manager';
@@ -31,6 +32,7 @@ export function DashboardLayout() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [showItemModal, setShowItemModal] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
+  const [viewingItem, setViewingItem] = useState<any>(null);
   const [showBatchUpload, setShowBatchUpload] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showCategories, setShowCategories] = useState(false);
@@ -120,6 +122,10 @@ export function DashboardLayout() {
   const handleEditItem = (item: any) => {
     setEditingItem(item);
     setShowItemModal(true);
+  };
+
+  const handleViewItem = (item: any) => {
+    setViewingItem(item);
   };
 
   const handleSaved = () => {
@@ -286,7 +292,7 @@ export function DashboardLayout() {
         {/* Grid */}
         <div className="flex-1 px-4 py-4">
           <div className="max-w-[1200px] mx-auto w-full">
-            <ItemGrid items={items} loading={loading} onEdit={handleEditItem} onDelete={handleDeleteItem} currency={currency} />
+            <ItemGrid items={items} loading={loading} onEdit={handleEditItem} onDelete={handleDeleteItem} onView={handleViewItem} currency={currency} />
           </div>
         </div>
       </div>
@@ -300,6 +306,13 @@ export function DashboardLayout() {
           onClose={() => { setShowItemModal(false); setEditingItem(null); }}
           onSaved={handleSaved}
           defaultCategoryId={selectedCategoryId}
+        />
+      )}
+      {viewingItem && (
+        <ItemViewModal
+          item={viewingItem}
+          currency={currency}
+          onClose={() => setViewingItem(null)}
         />
       )}
       {showBatchUpload && (
