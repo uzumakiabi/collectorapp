@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Package, DollarSign, Clock, TrendingUp, Loader2 } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
   PieChart, Pie, Cell, BarChart, Bar,
@@ -23,7 +24,18 @@ interface DashboardData {
 export function DashboardWidget({ currency = 'USD' }: { currency?: string }) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
   const symbol = getCurrencySymbol(currency);
+  const gridColor = isDark ? '#334155' : '#e2e8f0';
+  const axisColor = isDark ? '#94a3b8' : '#94a3b8';
+  const tooltipStyle = {
+    backgroundColor: isDark ? '#1e293b' : '#ffffff',
+    border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+    borderRadius: '8px',
+    color: isDark ? '#f8fafc' : '#0f172a',
+    fontSize: '12px',
+  };
 
   useEffect(() => {
     (async () => {
@@ -70,11 +82,11 @@ export function DashboardWidget({ currency = 'USD' }: { currency?: string }) {
             <p className="text-2xl font-display font-bold text-foreground">{fmt(data.totalValue)}</p>
           </div>
         </div>
-        <div className="bg-card rounded-xl p-4 border border-border/50 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+        <div className="bg-card rounded-xl p-4 border border-border/50 flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
             <TrendingUp className="w-5 h-5 text-blue-600" />
           </div>
-          <div>
+          <div className="min-w-0 overflow-hidden">
             <p className="text-xs text-muted-foreground">Most Valuable Item</p>
             <p className="text-lg font-display font-bold text-foreground truncate">
               {data.mostValuable?.[0]?.name ?? '—'}
@@ -98,10 +110,10 @@ export function DashboardWidget({ currency = 'USD' }: { currency?: string }) {
                     <stop offset="95%" stopColor="#0d9488" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="#94a3b8" />
-                <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" tickFormatter={(v) => `${symbol}${v}`} width={70} />
-                <Tooltip formatter={(v: any) => [fmt(Number(v)), 'Value']} />
+                <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke={axisColor} />
+                <YAxis tick={{ fontSize: 11 }} stroke={axisColor} tickFormatter={(v) => `${symbol}${v}`} width={70} />
+                <Tooltip formatter={(v: any) => [fmt(Number(v)), 'Value']} contentStyle={tooltipStyle} />
                 <Area type="monotone" dataKey="value" stroke="#0d9488" fill="url(#valueGrad)" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
@@ -116,15 +128,25 @@ export function DashboardWidget({ currency = 'USD' }: { currency?: string }) {
         <div className="bg-card rounded-xl p-4 border border-border/50">
           <h3 className="text-sm font-semibold text-foreground mb-3">Value by Category</h3>
           {data.valueByCategory.length > 0 ? (
-            <div className="h-56">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={data.valueByCategory} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={(e: any) => e.name}>
-                    {data.valueByCategory.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip formatter={(v: any) => [fmt(Number(v)), 'Value']} />
-                </PieChart>
-              </ResponsiveContainer>
+            <div>
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={data.valueByCategory} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} labelLine={false}>
+                      {data.valueByCategory.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip formatter={(v: any) => [fmt(Number(v)), 'Value']} contentStyle={tooltipStyle} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex flex-wrap gap-1.5 mt-2 justify-center">
+                {data.valueByCategory.map((c, i) => (
+                  <span key={c.name} className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
+                    {c.name}
+                  </span>
+                ))}
+              </div>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground py-8 text-center">No data yet</p>
@@ -136,10 +158,10 @@ export function DashboardWidget({ currency = 'USD' }: { currency?: string }) {
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={data.countByCategory} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="#94a3b8" interval={0} angle={-30} textAnchor="end" height={50} />
-                  <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" allowDecimals={false} />
-                  <Tooltip />
+                  <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke={axisColor} interval={0} angle={-30} textAnchor="end" height={50} />
+                  <YAxis tick={{ fontSize: 11 }} stroke={axisColor} allowDecimals={false} />
+                  <Tooltip contentStyle={tooltipStyle} />
                   <Bar dataKey="count" fill="#0d9488" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>

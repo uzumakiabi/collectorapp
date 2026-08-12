@@ -11,16 +11,18 @@ import { BatchUploadModal } from './batch-upload-modal';
 import { ExportModal } from './export-modal';
 import { CategoryManager } from './category-manager';
 import {
-  Package, Plus, Upload, Download, Search, SortAsc, SortDesc, LogOut, Menu, X, Settings, LayoutGrid, KeyRound, ChevronDown
+  Package, Plus, Upload, Download, Search, SortAsc, SortDesc, LogOut, Menu, X, Settings, LayoutGrid, KeyRound, ChevronDown, BarChart3, Moon, Sun
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useTheme } from 'next-themes';
 import { toast } from 'sonner';
 import { CURRENCY_LIST, getCurrencySymbol } from '@/lib/currency';
 
 export function DashboardLayout() {
   const { data: session, status } = useSession() || {};
   const router = useRouter();
+  const { theme, setTheme } = useTheme();
   const [items, setItems] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [folders, setFolders] = useState<any[]>([]);
@@ -37,6 +39,7 @@ export function DashboardLayout() {
   const [showBatchUpload, setShowBatchUpload] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showCategories, setShowCategories] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -213,7 +216,13 @@ export function DashboardLayout() {
                 <h1 className="text-lg font-display font-bold tracking-tight hidden sm:block">Collection Manager</h1>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <button onClick={() => setShowDashboard(true)} className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground transition" title="Dashboard">
+                <BarChart3 className="w-5 h-5" />
+              </button>
+              <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground transition" title="Toggle theme">
+                {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </button>
               <div className="relative">
                 <select
                   value={currency}
@@ -290,12 +299,9 @@ export function DashboardLayout() {
           </div>
         </div>
 
-        {/* Dashboard + Grid */}
+        {/* Grid */}
         <div className="flex-1 px-4 py-4">
-          <div className="max-w-[1200px] mx-auto w-full space-y-6">
-            {!selectedCategoryId && !selectedFolderId && (
-              <DashboardWidget currency={currency} />
-            )}
+          <div className="max-w-[1200px] mx-auto w-full">
             <ItemGrid items={items} loading={loading} onEdit={handleEditItem} onDelete={handleDeleteItem} onView={handleViewItem} currency={currency} />
           </div>
         </div>
@@ -338,6 +344,21 @@ export function DashboardLayout() {
           categories={categories}
           onClose={() => { setShowCategories(false); fetchData(); }}
         />
+      )}
+      {showDashboard && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4" onClick={() => setShowDashboard(false)}>
+          <div className="bg-background w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-3xl sm:rounded-xl shadow-xl overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="sticky top-0 z-10 bg-background border-b border-border flex items-center justify-between px-4 py-3">
+              <h2 className="text-lg font-display font-semibold text-foreground flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-teal-600" /> Dashboard
+              </h2>
+              <button onClick={() => setShowDashboard(false)} className="p-1.5 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-4">
+              <DashboardWidget currency={currency} />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

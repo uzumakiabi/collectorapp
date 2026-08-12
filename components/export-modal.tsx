@@ -38,8 +38,8 @@ export function ExportModal({ categoryId, folderId, onClose }: { categoryId: str
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-card rounded-xl shadow-xl w-full max-w-sm">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 sm:p-4">
+      <div className="bg-card w-full sm:max-w-sm sm:rounded-xl rounded-t-2xl shadow-xl">
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h2 className="text-lg font-display font-semibold">Export Collection</h2>
           <button onClick={onClose} className="p-1 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
