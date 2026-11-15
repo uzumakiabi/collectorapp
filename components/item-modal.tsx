@@ -231,7 +231,7 @@ export function ItemModal({ item, categories, folders, onClose, onSaved, default
             </select>
           </div>
 
-          {/* Price & Condition row */}
+          {/* Price row */}
           <div className="grid grid-cols-2 gap-3">
             <div className="min-w-0">
               <label htmlFor={`${uid}-price`} className="text-sm font-medium text-foreground block mb-1">Current Value ({getCurrencySymbol(inputCurrency)})</label>
@@ -249,6 +249,10 @@ export function ItemModal({ item, categories, folders, onClose, onSaved, default
                 This was a gift
               </label>
             </div>
+          </div>
+
+          {/* Purchase Date & Condition: stacked on phones, side by side from sm up */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="min-w-0">
               <label htmlFor={`${uid}-purchase-date`} className="text-sm font-medium text-foreground block mb-1">Purchase Date</label>
               <input id={`${uid}-purchase-date`} type="date" value={purchaseDate} onChange={e => setPurchaseDate(e.target.value)}
