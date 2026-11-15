@@ -231,14 +231,14 @@ export function ItemModal({ item, categories, folders, onClose, onSaved, default
             </select>
           </div>
 
-          {/* Price & Condition row */}
+          {/* Price row */}
           <div className="grid grid-cols-2 gap-3">
-            <div>
+            <div className="min-w-0">
               <label htmlFor={`${uid}-price`} className="text-sm font-medium text-foreground block mb-1">Current Value ({getCurrencySymbol(inputCurrency)})</label>
               <input id={`${uid}-price`} type="number" step="0.01" value={price} onChange={e => setPrice(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm focus:ring-2 focus:ring-primary/30 outline-none" placeholder="0.00" />
             </div>
-            <div>
+            <div className="min-w-0">
               <label htmlFor={`${uid}-purchase-price`} className="text-sm font-medium text-foreground block mb-1">Purchase Price ({getCurrencySymbol(inputCurrency)})</label>
               <input id={`${uid}-purchase-price`} type="number" step="0.01" value={isGift ? '0' : purchasePrice} onChange={e => setPurchasePrice(e.target.value)}
                 disabled={isGift}
@@ -249,15 +249,19 @@ export function ItemModal({ item, categories, folders, onClose, onSaved, default
                 This was a gift
               </label>
             </div>
-            <div>
+          </div>
+
+          {/* Purchase Date & Condition: stacked on phones, side by side from sm up */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="min-w-0">
               <label htmlFor={`${uid}-purchase-date`} className="text-sm font-medium text-foreground block mb-1">Purchase Date</label>
               <input id={`${uid}-purchase-date`} type="date" value={purchaseDate} onChange={e => setPurchaseDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm focus:ring-2 focus:ring-primary/30 outline-none" />
+                className="block w-full min-w-0 h-10 appearance-none text-left [&::-webkit-date-and-time-value]:text-left [&::-webkit-date-and-time-value]:min-h-[1.25rem] px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm focus:ring-2 focus:ring-primary/30 outline-none" />
             </div>
-            <div>
+            <div className="min-w-0">
               <label htmlFor={`${uid}-condition`} className="text-sm font-medium text-foreground block mb-1">Condition</label>
               <select id={`${uid}-condition`} value={condition} onChange={e => setCondition(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm focus:ring-2 focus:ring-primary/30 outline-none">
+                className="block w-full min-w-0 h-10 px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm focus:ring-2 focus:ring-primary/30 outline-none">
                 <option value="">Select</option>
                 {CONDITIONS.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
