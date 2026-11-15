@@ -48,8 +48,9 @@ export async function POST(request: Request) {
     if (priceIdx === -1) priceIdx = header.indexOf('price');
     const purchasePriceIdx = header.indexOf('purchase price');
     const purchaseDateIdx = header.indexOf('purchase date');
+    const giftIdx = header.indexOf('gift');
 
-    const knownIndexes = new Set([nameIdx, categoryIdx, descriptionIdx, conditionIdx, priceIdx, purchasePriceIdx, purchaseDateIdx]);
+    const knownIndexes = new Set([nameIdx, categoryIdx, descriptionIdx, conditionIdx, priceIdx, purchasePriceIdx, purchaseDateIdx, giftIdx]);
     const customColumns = rows[0]
       .map((label, idx) => ({ label: label.trim(), idx }))
       .filter(({ label, idx }) => label.length > 0 && !knownIndexes.has(idx));
@@ -71,6 +72,7 @@ export async function POST(request: Request) {
       price: number | null;
       purchasePrice: number | null;
       purchaseDate: Date | null;
+      isGift: boolean;
       customValues: Record<string, string>;
     }[] = [];
 
@@ -100,9 +102,10 @@ export async function POST(request: Request) {
         }
       }
 
+      const isGift = giftIdx >= 0 && ['yes', 'true', '1', 'y'].includes((row[giftIdx] ?? '').trim().toLowerCase());
       const purchasePriceRaw = purchasePriceIdx >= 0 ? (row[purchasePriceIdx] ?? '').trim() : '';
-      let purchasePrice: number | null = null;
-      if (purchasePriceRaw) {
+      let purchasePrice: number | null = isGift ? 0 : null;
+      if (purchasePriceRaw && !isGift) {
         purchasePrice = parseFloat(purchasePriceRaw);
         if (Number.isNaN(purchasePrice)) {
           skipped.push({ row: rowNumber, reason: 'Invalid purchase price' });
@@ -135,6 +138,7 @@ export async function POST(request: Request) {
         price,
         purchasePrice,
         purchaseDate,
+        isGift,
         customValues,
       });
     }
@@ -163,6 +167,7 @@ export async function POST(request: Request) {
             price: entry.price,
             purchasePrice: entry.purchasePrice,
             purchaseDate: entry.purchaseDate,
+            isGift: entry.isGift,
             condition: entry.condition,
             categoryId,
             userId,

@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { CURRENCIES, getLiveRates } from '@/lib/currency';
+import { CURRENCIES, DISPLAY_CURRENCIES, getLiveRates } from '@/lib/currency';
 
 export async function POST(request: Request) {
   try {
@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     const userId = session.user.id;
 
     const { currency } = await request.json();
-    if (!currency || !CURRENCIES[currency]) {
+    if (!currency || !DISPLAY_CURRENCIES.includes(currency)) {
       return NextResponse.json({ error: 'Invalid currency' }, { status: 400 });
     }
 

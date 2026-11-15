@@ -210,6 +210,7 @@ export default function OnboardingPage() {
           onClose={() => setShowItemModal(false)}
           onSaved={handleItemSaved}
           defaultCategoryId={null}
+          currency={currency}
         />
       )}
     </div>

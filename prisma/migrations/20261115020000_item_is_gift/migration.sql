@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Item" ADD COLUMN "isGift" BOOLEAN NOT NULL DEFAULT false;

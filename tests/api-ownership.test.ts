@@ -17,6 +17,13 @@ const { getServerSession, prismaMock } = vi.hoisted(() => ({
 vi.mock('next-auth', () => ({ getServerSession }));
 vi.mock('@/lib/auth', () => ({ authOptions: {} }));
 vi.mock('@/lib/prisma', () => ({ prisma: prismaMock }));
+vi.mock('@/lib/currency', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/currency')>();
+  return {
+    ...actual,
+    getLiveRates: vi.fn().mockResolvedValue({ USD: 1, EUR: 0.92, GBP: 0.79, MKD: 57.5 }),
+  };
+});
 
 import { POST as addItemToFolder } from '@/app/api/folders/[id]/items/route';
 import { DELETE as deleteCategoryField } from '@/app/api/categories/[id]/fields/route';
@@ -35,6 +42,7 @@ function jsonRequest(url: string, method: string, body: unknown, headers: Record
 
 beforeEach(() => {
   vi.clearAllMocks();
+  prismaMock.user.findUnique.mockResolvedValue({ currency: 'USD' });
 });
 
 describe('POST /api/folders/[id]/items', () => {
@@ -108,6 +116,35 @@ describe('POST /api/items', () => {
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: 'Invalid category' });
     expect(prismaMock.category.findFirst).toHaveBeenCalledWith({ where: { id: 'category-1', userId: 'user-1' } });
+  });
+
+  it('converts the price from the input currency to the base currency', async () => {
+    getServerSession.mockResolvedValue({ user: { id: 'user-1' } });
+    prismaMock.category.findFirst.mockResolvedValue({ id: 'category-1' });
+    prismaMock.user.findUnique.mockResolvedValue({ currency: 'USD' });
+
+    const tx = {
+      item: { create: vi.fn().mockResolvedValue({ id: 'item-1' }) },
+      priceHistory: { create: vi.fn() },
+      folder: { findFirst: vi.fn().mockResolvedValue(null) },
+      folderItem: { createMany: vi.fn() },
+    };
+    prismaMock.$transaction.mockImplementation(async (fn: any) => fn(tx));
+
+    const response = await createItem(
+      jsonRequest('http://localhost/api/items', 'POST', {
+        name: 'Widget',
+        categoryId: 'category-1',
+        price: '92',
+        inputCurrency: 'EUR',
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(tx.item.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ price: 100 }) })
+    );
+    expect(tx.priceHistory.create).toHaveBeenCalledWith({ data: { price: 100, itemId: 'item-1' } });
   });
 });
 

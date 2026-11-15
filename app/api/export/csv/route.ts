@@ -45,7 +45,7 @@ export async function GET(request: Request) {
     const customKeys = Array.from(allCustomKeys);
 
     const rows: (string | number | null | undefined)[][] = [
-      ['Name', 'Category', 'Description', 'Condition', 'Current Value', 'Purchase Price', 'Purchase Date', 'Created', ...customKeys],
+      ['Name', 'Category', 'Description', 'Condition', 'Current Value', 'Purchase Price', 'Gift', 'Purchase Date', 'Created', ...customKeys],
     ];
 
     for (const item of (items ?? [])) {
@@ -57,6 +57,7 @@ export async function GET(request: Request) {
         item?.condition ?? '',
         item?.price != null ? item.price : '',
         item?.purchasePrice != null ? item.purchasePrice : '',
+        item?.isGift ? 'Yes' : '',
         item?.purchaseDate ? new Date(item.purchaseDate).toISOString().slice(0, 10) : '',
         item?.createdAt ? new Date(item.createdAt).toLocaleDateString('en-US', { timeZone: 'UTC' }) : '',
         ...customKeys.map((ck) => cv[ck] ?? ''),

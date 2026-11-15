@@ -8,8 +8,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
 import { CURRENCY_LIST } from '@/lib/currency';
-
-const AVATAR_OPTIONS = Array.from({ length: 10 }, (_, i) => `avatar-${i + 1}.png`);
+import { AVATAR_OPTIONS, isValidAvatar } from '@/lib/avatars';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -39,7 +38,7 @@ export default function ProfilePage() {
         const u = await res.json();
         if (u?.name) setName(u.name);
         if (u?.bio) setBio(u.bio);
-        if (u?.avatar) setAvatar(u.avatar);
+        if (isValidAvatar(u?.avatar)) setAvatar(u.avatar);
         if (u?.currency) setCurrency(u.currency);
       } catch { /* silent */ }
       setLoading(false);
@@ -54,7 +53,7 @@ export default function ProfilePage() {
       const res = await fetch('/api/user', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, bio, avatar }),
+        body: JSON.stringify({ name, bio, avatar: avatar || undefined }),
       });
       if (res.ok) {
         setProfileMsg('Profile saved');
@@ -169,13 +168,16 @@ export default function ProfilePage() {
           </div>
           <div>
             <p className="text-sm font-medium text-foreground mb-2 block">Avatar</p>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex gap-4">
               {AVATAR_OPTIONS.map(a => (
-                <button key={a} type="button" onClick={() => setAvatar(a)} aria-label={`Use avatar ${a}`}
-                  className={`w-16 h-16 rounded-full overflow-hidden transition border-2 ${
-                    avatar === a ? 'border-teal-600 ring-2 ring-teal-600/30' : 'border-border hover:border-muted-foreground'
+                <button key={a.file} type="button" onClick={() => setAvatar(a.file)} aria-label={`Use ${a.label.toLowerCase()} avatar`}
+                  aria-pressed={avatar === a.file} className="flex flex-col items-center gap-1">
+                  <span className={`w-16 h-16 rounded-full overflow-hidden transition border-2 ${
+                    avatar === a.file ? 'border-teal-600 ring-2 ring-teal-600/30' : 'border-border hover:border-muted-foreground'
                   }`}>
-                  <Image src={`/avatars/${a}`} alt="Avatar" width={64} height={64} className="w-full h-full object-cover" />
+                    <Image src={`/avatars/${a.file}`} alt="" width={64} height={64} className="w-full h-full object-cover" />
+                  </span>
+                  <span className="text-xs text-muted-foreground">{a.label}</span>
                 </button>
               ))}
             </div>

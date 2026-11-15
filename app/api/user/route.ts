@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { isValidAvatar } from '@/lib/avatars';
 
 export async function GET() {
   try {
@@ -34,7 +35,10 @@ export async function PATCH(request: Request) {
     const data: any = {};
     if (typeof name === 'string') data.name = name;
     if (typeof bio === 'string') data.bio = bio;
-    if (typeof avatar === 'string') data.avatar = avatar;
+    if (avatar !== undefined) {
+      if (!isValidAvatar(avatar)) return NextResponse.json({ error: 'Invalid avatar' }, { status: 400 });
+      data.avatar = avatar;
+    }
 
     const user = await prisma.user.update({
       where: { id: userId },

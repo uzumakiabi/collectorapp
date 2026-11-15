@@ -12,7 +12,9 @@ export const CURRENCIES: Record<string, CurrencyInfo> = {
   MKD: { code: 'MKD', symbol: 'ден', rate: 57.5, label: 'Macedonian Denar' },
 };
 
-export const CURRENCY_LIST: CurrencyInfo[] = Object.values(CURRENCIES);
+export const DISPLAY_CURRENCIES = ['USD', 'EUR', 'MKD'];
+
+export const CURRENCY_LIST: CurrencyInfo[] = DISPLAY_CURRENCIES.map((code) => CURRENCIES[code]);
 
 export function getCurrency(code: string): CurrencyInfo {
   return CURRENCIES[code] ?? CURRENCIES.USD;
@@ -20,6 +22,12 @@ export function getCurrency(code: string): CurrencyInfo {
 
 export function getCurrencySymbol(code: string): string {
   return getCurrency(code).symbol;
+}
+
+export function convertWithRates(value: number, from: string, to: string, rates: Record<string, number>): number {
+  const fromRate = rates[from] ?? CURRENCIES[from]?.rate ?? 1;
+  const toRate = rates[to] ?? CURRENCIES[to]?.rate ?? 1;
+  return Math.round(value * (toRate / fromRate) * 100) / 100;
 }
 
 // --- Live rates (server-side only) ---

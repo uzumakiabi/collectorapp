@@ -1,9 +1,10 @@
 'use client';
 
 import { useId, useRef } from 'react';
-import { X, ImageIcon, Tag, Calendar, DollarSign, Wallet, TrendingUp, TrendingDown } from 'lucide-react';
-import { getCurrencySymbol } from '@/lib/currency';
+import { X, ImageIcon, Tag, Calendar, DollarSign, Wallet, Gift, TrendingUp, TrendingDown } from 'lucide-react';
+import { DISPLAY_CURRENCIES, convertWithRates, getCurrencySymbol } from '@/lib/currency';
 import { useModalA11y } from '@/hooks/use-modal-a11y';
+import { useRates } from '@/hooks/use-rates';
 import type { Item } from '@/types/collection';
 
 const CONDITION_STYLES: Record<string, string> = {
@@ -24,9 +25,16 @@ export function ItemViewModal({ item, currency = 'USD', onClose }: ItemViewModal
   const panelRef = useRef<HTMLDivElement>(null);
   const uid = useId();
   useModalA11y(panelRef, onClose);
+  const rates = useRates();
 
   if (!item) return null;
-  const symbol = getCurrencySymbol(currency ?? 'USD');
+  const baseCurrency = currency ?? 'USD';
+  const symbol = getCurrencySymbol(baseCurrency);
+  const otherCurrencies = DISPLAY_CURRENCIES.filter((code) => code !== baseCurrency);
+  const equivalents = (value: number) =>
+    otherCurrencies
+      .map((code) => `${getCurrencySymbol(code)}${convertWithRates(value, baseCurrency, code, rates ?? {}).toFixed(2)}`)
+      .join(' · ');
   const photos = item?.photos ?? [];
   const customValues = item?.customValues ?? {};
   const customEntries = Object.entries(customValues ?? {}).filter(([, v]: any) => v);
@@ -75,10 +83,13 @@ export function ItemViewModal({ item, currency = 'USD', onClose }: ItemViewModal
             </div>
 
             {item?.price != null && (
-              <div className="flex items-center gap-2">
-                <DollarSign className="w-4 h-4 text-teal-600" />
-                <span className="text-sm text-muted-foreground">Price</span>
-                <span className="text-sm font-medium text-foreground ml-auto font-mono">{symbol}{Number(item.price).toFixed(2)}</span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-teal-600" />
+                  <span className="text-sm text-muted-foreground">Price</span>
+                  <span className="text-sm font-medium text-foreground ml-auto font-mono">{symbol}{Number(item.price).toFixed(2)}</span>
+                </div>
+                <p className="text-xs text-muted-foreground text-right">{equivalents(Number(item.price))}</p>
               </div>
             )}
 
@@ -90,11 +101,20 @@ export function ItemViewModal({ item, currency = 'USD', onClose }: ItemViewModal
               </div>
             )}
 
-            {item?.purchasePrice != null && (
+            {item?.isGift ? (
               <div className="flex items-center gap-2">
-                <Wallet className="w-4 h-4 text-teal-600" />
+                <Gift className="w-4 h-4 text-teal-600" />
                 <span className="text-sm text-muted-foreground">Purchase Price</span>
-                <span className="text-sm font-medium text-foreground ml-auto font-mono">{symbol}{Number(item.purchasePrice).toFixed(2)}</span>
+                <span className="text-xs px-2 py-0.5 rounded ml-auto bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300">Gift</span>
+              </div>
+            ) : item?.purchasePrice != null && (
+              <div>
+                <div className="flex items-center gap-2">
+                  <Wallet className="w-4 h-4 text-teal-600" />
+                  <span className="text-sm text-muted-foreground">Purchase Price</span>
+                  <span className="text-sm font-medium text-foreground ml-auto font-mono">{symbol}{Number(item.purchasePrice).toFixed(2)}</span>
+                </div>
+                <p className="text-xs text-muted-foreground text-right">{equivalents(Number(item.purchasePrice))}</p>
               </div>
             )}
 
@@ -107,13 +127,16 @@ export function ItemViewModal({ item, currency = 'USD', onClose }: ItemViewModal
             )}
 
             {gain != null && (
-              <div className="flex items-center gap-2">
-                {gain >= 0 ? <TrendingUp className="w-4 h-4 text-emerald-600" /> : <TrendingDown className="w-4 h-4 text-red-600" />}
-                <span className="text-sm text-muted-foreground">Gain/Loss</span>
-                <span className={`text-sm font-medium ml-auto font-mono ${gainClass}`}>
-                  {gain >= 0 ? '+' : '-'}{symbol}{Math.abs(gain).toFixed(2)}
-                  {gainPercent != null && ` (${gainPercent >= 0 ? '+' : ''}${gainPercent.toFixed(1)}%)`}
-                </span>
+              <div>
+                <div className="flex items-center gap-2">
+                  {gain >= 0 ? <TrendingUp className="w-4 h-4 text-emerald-600" /> : <TrendingDown className="w-4 h-4 text-red-600" />}
+                  <span className="text-sm text-muted-foreground">Gain/Loss</span>
+                  <span className={`text-sm font-medium ml-auto font-mono ${gainClass}`}>
+                    {gain >= 0 ? '+' : '-'}{symbol}{Math.abs(gain).toFixed(2)}
+                    {gainPercent != null && ` (${gainPercent >= 0 ? '+' : ''}${gainPercent.toFixed(1)}%)`}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground text-right">{equivalents(gain)}</p>
               </div>
             )}
 

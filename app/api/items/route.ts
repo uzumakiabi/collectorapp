@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { CURRENCIES, convertWithRates, getLiveRates } from '@/lib/currency';
 import { validatePhotos } from '@/lib/validate-photos';
 
 export async function GET(request: Request) {
@@ -77,10 +78,13 @@ export async function POST(request: Request) {
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const userId = session.user.id;
     const body = await request.json();
-    const { name, description, price, purchasePrice, purchaseDate, condition, categoryId, customValues, photos, folderIds } = body;
+    const { name, description, price, purchasePrice, purchaseDate, isGift, condition, categoryId, customValues, photos, folderIds, inputCurrency } = body;
 
     if (!name?.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 });
     if (!categoryId) return NextResponse.json({ error: 'Category required' }, { status: 400 });
+    if (inputCurrency !== undefined && inputCurrency !== null && !CURRENCIES[inputCurrency]) {
+      return NextResponse.json({ error: 'Invalid currency' }, { status: 400 });
+    }
 
     const category = await prisma.category.findFirst({ where: { id: categoryId, userId } });
     if (!category) return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
@@ -115,14 +119,24 @@ export async function POST(request: Request) {
     }
 
     const parsedPrice = price ? parseFloat(price) : null;
+    const parsedPurchasePrice = isGift === true ? 0 : (purchasePrice != null && purchasePrice !== '' ? parseFloat(purchasePrice) : null);
+
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { currency: true } });
+    const baseCurrency = user?.currency ?? 'USD';
+    const rates = inputCurrency && inputCurrency !== baseCurrency ? await getLiveRates() : null;
+    const convert = (value: number | null) =>
+      rates && value != null ? convertWithRates(value, inputCurrency, baseCurrency, rates) : value;
+    const finalPrice = convert(parsedPrice);
+    const finalPurchasePrice = convert(parsedPurchasePrice);
 
     const item = await prisma.$transaction(async (tx) => {
       const created = await tx.item.create({
         data: {
           name: name.trim(),
           description: description ?? null,
-          price: parsedPrice,
-          purchasePrice: purchasePrice ? parseFloat(purchasePrice) : null,
+          price: finalPrice,
+          purchasePrice: finalPurchasePrice,
+          isGift: isGift === true,
           purchaseDate: purchaseDateValue,
           condition: condition ?? null,
           categoryId,
@@ -139,8 +153,8 @@ export async function POST(request: Request) {
         include: { photos: true, category: true },
       });
 
-      if (parsedPrice != null) {
-        await tx.priceHistory.create({ data: { price: parsedPrice, itemId: created.id } });
+      if (finalPrice != null) {
+        await tx.priceHistory.create({ data: { price: finalPrice, itemId: created.id } });
       }
 
       const autoFolder = await tx.folder.findFirst({

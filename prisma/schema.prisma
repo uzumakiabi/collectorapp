@@ -59,6 +59,7 @@ model Item {
   price         Float?
   purchasePrice Float?
   purchaseDate  DateTime?
+  isGift        Boolean        @default(false)
   condition     String?
   categoryId    String
   category      Category       @relation(fields: [categoryId], references: [id], onDelete: Cascade)

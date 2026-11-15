@@ -4,7 +4,9 @@ import { useState, useEffect, useId, useRef } from 'react';
 import { X, Camera, Trash2, Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { fileToBase64 } from '@/lib/image';
+import { DISPLAY_CURRENCIES, convertWithRates, getCurrencySymbol } from '@/lib/currency';
 import { useModalA11y } from '@/hooks/use-modal-a11y';
+import { useRates } from '@/hooks/use-rates';
 import type { Category, Folder, Item } from '@/types/collection';
 
 interface ItemModalProps {
@@ -14,6 +16,7 @@ interface ItemModalProps {
   onClose: () => void;
   onSaved: () => void;
   defaultCategoryId: string | null;
+  currency?: string;
 }
 
 const CONDITIONS = ['Mint', 'Near Mint', 'Good', 'Fair', 'Poor'];
@@ -26,12 +29,19 @@ interface TempPhoto {
   existingUrl?: string;
 }
 
-export function ItemModal({ item, categories, folders, onClose, onSaved, defaultCategoryId }: ItemModalProps) {
+export function ItemModal({ item, categories, folders, onClose, onSaved, defaultCategoryId, currency = 'USD' }: ItemModalProps) {
   const isEdit = !!item;
+  const baseCurrency = currency ?? 'USD';
+  const currencyOptions = baseCurrency === 'GBP' ? [...DISPLAY_CURRENCIES, 'GBP'] : DISPLAY_CURRENCIES;
+  const rates = useRates();
   const [name, setName] = useState(item?.name ?? '');
   const [description, setDescription] = useState(item?.description ?? '');
   const [price, setPrice] = useState(item?.price != null ? String(item.price) : '');
   const [purchasePrice, setPurchasePrice] = useState(item?.purchasePrice != null ? String(item.purchasePrice) : '');
+  const [inputCurrency, setInputCurrency] = useState(
+    DISPLAY_CURRENCIES.includes(baseCurrency) || baseCurrency === 'GBP' ? baseCurrency : 'USD'
+  );
+  const [isGift, setIsGift] = useState(item?.isGift ?? false);
   const [purchaseDate, setPurchaseDate] = useState(item?.purchaseDate ? new Date(item.purchaseDate).toISOString().slice(0, 10) : '');
   const [condition, setCondition] = useState(item?.condition ?? '');
   const [categoryId, setCategoryId] = useState(item?.categoryId ?? defaultCategoryId ?? '');
@@ -88,6 +98,31 @@ export function ItemModal({ item, categories, folders, onClose, onSaved, default
     });
   };
 
+  const handleCurrencyChange = (next: string) => {
+    const prev = inputCurrency;
+    if (next === prev) return;
+    const activeRates = rates ?? {};
+    const convertValue = (value: string) => {
+      if (!value.trim()) return value;
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) return value;
+      return convertWithRates(parsed, prev, next, activeRates).toFixed(2);
+    };
+    setInputCurrency(next);
+    setPrice((current) => convertValue(current));
+    if (!isGift) setPurchasePrice((current) => convertValue(current));
+  };
+
+  const equivalents = (value: string) => {
+    if (!value.trim()) return null;
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return null;
+    const activeRates = rates ?? {};
+    return DISPLAY_CURRENCIES.filter((code) => code !== inputCurrency)
+      .map((code) => `${getCurrencySymbol(code)}${convertWithRates(parsed, inputCurrency, code, activeRates).toFixed(2)}`)
+      .join(' · ');
+  };
+
   const handleSave = async () => {
     if (!name?.trim()) { toast.error('Name is required'); return; }
     if (!categoryId) { toast.error('Category is required'); return; }
@@ -105,7 +140,9 @@ export function ItemModal({ item, categories, folders, onClose, onSaved, default
         name: name.trim(),
         description: description || null,
         price: price || null,
-        purchasePrice: purchasePrice || null,
+        purchasePrice: isGift ? 0 : (purchasePrice || null),
+        isGift,
+        inputCurrency,
         purchaseDate: purchaseDate || null,
         condition: condition || null,
         categoryId,
@@ -131,6 +168,9 @@ export function ItemModal({ item, categories, folders, onClose, onSaved, default
       setSaving(false);
     }
   };
+
+  const priceEquivalents = equivalents(price);
+  const purchaseEquivalents = isGift ? null : equivalents(purchasePrice);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 sm:p-4">
@@ -182,17 +222,32 @@ export function ItemModal({ item, categories, folders, onClose, onSaved, default
             </select>
           </div>
 
+          {/* Currency */}
+          <div>
+            <label htmlFor={`${uid}-currency`} className="text-sm font-medium text-foreground block mb-1">Currency</label>
+            <select id={`${uid}-currency`} value={inputCurrency} onChange={e => handleCurrencyChange(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm focus:ring-2 focus:ring-primary/30 outline-none">
+              {currencyOptions.map((code) => <option key={code} value={code}>{code} ({getCurrencySymbol(code)})</option>)}
+            </select>
+          </div>
+
           {/* Price & Condition row */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label htmlFor={`${uid}-price`} className="text-sm font-medium text-foreground block mb-1">Current Value</label>
+              <label htmlFor={`${uid}-price`} className="text-sm font-medium text-foreground block mb-1">Current Value ({getCurrencySymbol(inputCurrency)})</label>
               <input id={`${uid}-price`} type="number" step="0.01" value={price} onChange={e => setPrice(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm focus:ring-2 focus:ring-primary/30 outline-none" placeholder="0.00" />
             </div>
             <div>
-              <label htmlFor={`${uid}-purchase-price`} className="text-sm font-medium text-foreground block mb-1">Purchase Price</label>
-              <input id={`${uid}-purchase-price`} type="number" step="0.01" value={purchasePrice} onChange={e => setPurchasePrice(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm focus:ring-2 focus:ring-primary/30 outline-none" placeholder="0.00" />
+              <label htmlFor={`${uid}-purchase-price`} className="text-sm font-medium text-foreground block mb-1">Purchase Price ({getCurrencySymbol(inputCurrency)})</label>
+              <input id={`${uid}-purchase-price`} type="number" step="0.01" value={isGift ? '0' : purchasePrice} onChange={e => setPurchasePrice(e.target.value)}
+                disabled={isGift}
+                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm focus:ring-2 focus:ring-primary/30 outline-none disabled:opacity-60" placeholder="0.00" />
+              <label className="mt-1.5 inline-flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                <input type="checkbox" checked={isGift} onChange={e => setIsGift(e.target.checked)}
+                  className="rounded border-input accent-teal-600" />
+                This was a gift
+              </label>
             </div>
             <div>
               <label htmlFor={`${uid}-purchase-date`} className="text-sm font-medium text-foreground block mb-1">Purchase Date</label>
@@ -208,6 +263,13 @@ export function ItemModal({ item, categories, folders, onClose, onSaved, default
               </select>
             </div>
           </div>
+
+          {priceEquivalents && (
+            <p className="text-xs text-muted-foreground">Current Value ≈ {priceEquivalents}</p>
+          )}
+          {purchaseEquivalents && (
+            <p className="text-xs text-muted-foreground">Purchase Price ≈ {purchaseEquivalents}</p>
+          )}
 
           {/* Description */}
           <div>

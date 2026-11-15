@@ -19,6 +19,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { useModalA11y } from '@/hooks/use-modal-a11y';
+import { isValidAvatar } from '@/lib/avatars';
 import type { Category, Folder, Item } from '@/types/collection';
 
 export function DashboardLayout() {
@@ -139,7 +140,7 @@ export function DashboardLayout() {
           const res = await fetch('/api/user');
           const user = await res.json();
           if (user?.currency) setCurrency(user.currency);
-          if (user?.avatar) setAvatar(user.avatar);
+          if (isValidAvatar(user?.avatar)) setAvatar(user.avatar);
           if (user?.onboarded === false) {
             router.replace('/onboarding');
           }
@@ -382,6 +383,7 @@ export function DashboardLayout() {
           onClose={() => { setShowItemModal(false); setEditingItem(null); }}
           onSaved={handleSaved}
           defaultCategoryId={selectedCategoryId}
+          currency={currency}
         />
       )}
       {viewingItem && (

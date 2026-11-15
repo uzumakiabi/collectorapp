@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { CURRENCIES, convertWithRates, getLiveRates } from '@/lib/currency';
 import { validatePhotos } from '@/lib/validate-photos';
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
@@ -37,7 +38,11 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
     const body = await request.json();
-    const { name, description, price, purchasePrice, purchaseDate, condition, categoryId, customValues, photos, folderIds } = body;
+    const { name, description, price, purchasePrice, purchaseDate, isGift, condition, categoryId, customValues, photos, folderIds, inputCurrency } = body;
+
+    if (inputCurrency !== undefined && inputCurrency !== null && !CURRENCIES[inputCurrency]) {
+      return NextResponse.json({ error: 'Invalid currency' }, { status: 400 });
+    }
 
     if (categoryId) {
       const category = await prisma.category.findFirst({ where: { id: categoryId, userId } });
@@ -79,6 +84,20 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
     const parsedPrice = price !== undefined ? (price ? parseFloat(price) : null) : existing.price;
 
+    const nextIsGift = typeof isGift === 'boolean' ? isGift : existing.isGift;
+
+    const parsedPurchasePrice = purchasePrice !== undefined
+      ? (purchasePrice != null && purchasePrice !== '' ? parseFloat(purchasePrice) : null)
+      : undefined;
+
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { currency: true } });
+    const baseCurrency = user?.currency ?? 'USD';
+    const rates = inputCurrency && inputCurrency !== baseCurrency ? await getLiveRates() : null;
+    const convert = (value: number | null) =>
+      rates && value != null ? convertWithRates(value, inputCurrency, baseCurrency, rates) : value;
+    const finalPrice = price !== undefined ? convert(parsedPrice) : parsedPrice;
+    const finalPurchasePrice = nextIsGift ? 0 : parsedPurchasePrice !== undefined ? convert(parsedPurchasePrice) : existing.purchasePrice;
+
     const item = await prisma.$transaction(async (tx) => {
       if (photos) {
         await tx.itemPhoto.deleteMany({ where: { itemId: params.id } });
@@ -89,8 +108,9 @@ export async function PUT(request: Request, { params }: { params: { id: string }
         data: {
           name: name?.trim() ?? existing.name,
           description: description ?? existing.description,
-          price: parsedPrice,
-          purchasePrice: purchasePrice !== undefined ? (purchasePrice ? parseFloat(purchasePrice) : null) : existing.purchasePrice,
+          price: finalPrice,
+          purchasePrice: finalPurchasePrice,
+          isGift: nextIsGift,
           purchaseDate: purchaseDateValue !== undefined ? purchaseDateValue : existing.purchaseDate,
           condition: condition ?? existing.condition,
           categoryId: categoryId ?? existing.categoryId,
@@ -108,8 +128,8 @@ export async function PUT(request: Request, { params }: { params: { id: string }
         include: { photos: true, category: true },
       });
 
-      if (parsedPrice != null && parsedPrice !== existing.price) {
-        await tx.priceHistory.create({ data: { price: parsedPrice, itemId: params.id } });
+      if (finalPrice != null && finalPrice !== existing.price) {
+        await tx.priceHistory.create({ data: { price: finalPrice, itemId: params.id } });
       }
 
       if (categoryId && categoryId !== existing.categoryId) {

@@ -48,6 +48,7 @@ export interface Item {
   price?: number | null;
   purchasePrice?: number | null;
   purchaseDate?: string | null;
+  isGift?: boolean;
   condition?: string | null;
   categoryId: string;
   userId?: string;
