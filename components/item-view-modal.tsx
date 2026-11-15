@@ -1,7 +1,7 @@
 'use client';
 
-import { useId, useRef } from 'react';
-import { X, ImageIcon, Tag, Calendar, DollarSign, Wallet, Gift, TrendingUp, TrendingDown } from 'lucide-react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { X, ImageIcon, ChevronLeft, ChevronRight, Tag, Calendar, DollarSign, Wallet, Gift, TrendingUp, TrendingDown } from 'lucide-react';
 import { DISPLAY_CURRENCIES, convertWithRates, getCurrencySymbol } from '@/lib/currency';
 import { useModalA11y } from '@/hooks/use-modal-a11y';
 import { useRates } from '@/hooks/use-rates';
@@ -26,6 +26,47 @@ export function ItemViewModal({ item, currency = 'USD', onClose }: ItemViewModal
   const uid = useId();
   useModalA11y(panelRef, onClose);
   const rates = useRates();
+  const [current, setCurrent] = useState(0);
+  const [fullscreen, setFullscreen] = useState(false);
+  const touchStartX = useRef<number | null>(null);
+  const photoCount = item?.photos?.length ?? 0;
+
+  const prev = useCallback(() => setCurrent(c => (c - 1 + photoCount) % Math.max(photoCount, 1)), [photoCount]);
+  const next = useCallback(() => setCurrent(c => (c + 1) % Math.max(photoCount, 1)), [photoCount]);
+
+  useEffect(() => {
+    setCurrent(0);
+    setFullscreen(false);
+  }, [item?.id]);
+
+  useEffect(() => {
+    const handleKey = (event: KeyboardEvent) => {
+      if (fullscreen && event.key === 'Escape') {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        setFullscreen(false);
+        return;
+      }
+      if (photoCount < 2) return;
+      const target = event.target as HTMLElement | null;
+      if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
+      if (event.key === 'ArrowLeft') { event.preventDefault(); prev(); }
+      if (event.key === 'ArrowRight') { event.preventDefault(); next(); }
+    };
+    window.addEventListener('keydown', handleKey, true);
+    return () => window.removeEventListener('keydown', handleKey, true);
+  }, [fullscreen, photoCount, prev, next]);
+
+  const onTouchStart = (event: React.TouchEvent) => {
+    touchStartX.current = event.touches[0]?.clientX ?? null;
+  };
+  const onTouchEnd = (event: React.TouchEvent) => {
+    if (touchStartX.current == null || photoCount < 2) return;
+    const dx = (event.changedTouches[0]?.clientX ?? touchStartX.current) - touchStartX.current;
+    touchStartX.current = null;
+    if (Math.abs(dx) < 40) return;
+    if (dx > 0) prev(); else next();
+  };
 
   if (!item) return null;
   const baseCurrency = currency ?? 'USD';
@@ -36,7 +77,8 @@ export function ItemViewModal({ item, currency = 'USD', onClose }: ItemViewModal
       .map((code) => `${getCurrencySymbol(code)}${convertWithRates(value, baseCurrency, code, rates ?? {}).toFixed(2)}`)
       .join(' · ');
   const photos = item?.photos ?? [];
-  const mainPhotoUrl = photos?.[0]?.id ? `/api/photos/${photos[0].id}` : photos?.[0]?.data ?? null;
+  const activePhoto = photos[Math.min(current, Math.max(photos.length - 1, 0))];
+  const mainPhotoUrl = activePhoto?.id ? `/api/photos/${activePhoto.id}` : activePhoto?.data ?? null;
   const customValues = item?.customValues ?? {};
   const customEntries = Object.entries(customValues ?? {}).filter(([, v]: any) => v);
   const condClass = CONDITION_STYLES[item?.condition ?? ''] ?? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400';
@@ -56,21 +98,40 @@ export function ItemViewModal({ item, currency = 'USD', onClose }: ItemViewModal
 
         <div className="p-4 space-y-4">
           {/* Photo */}
-          <div className="aspect-square bg-muted rounded-lg overflow-hidden flex items-center justify-center">
+          <div className="relative aspect-square bg-muted rounded-lg overflow-hidden flex items-center justify-center"
+            onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
             {mainPhotoUrl ? (
-              <img src={mainPhotoUrl} alt={item?.name ?? 'Item'} loading="eager" className="w-full h-full object-cover" />
+              <button type="button" onClick={() => setFullscreen(true)} aria-label="Open photo full screen" className="w-full h-full cursor-zoom-in">
+                <img src={mainPhotoUrl} alt={`${item?.name ?? 'Item'} photo ${current + 1} of ${photoCount}`} loading="eager" className="w-full h-full object-cover" />
+              </button>
             ) : (
               <ImageIcon className="w-16 h-16 text-muted-foreground/40" />
+            )}
+            {photoCount > 1 && (
+              <>
+                <button type="button" onClick={prev} aria-label="Previous photo"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/45 text-white hover:bg-black/65 transition">
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button type="button" onClick={next} aria-label="Next photo"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/45 text-white hover:bg-black/65 transition">
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+                <span className="absolute bottom-2 right-2 text-xs px-2 py-0.5 rounded-full bg-black/55 text-white">{current + 1} / {photoCount}</span>
+              </>
             )}
           </div>
 
           {/* Multiple photos */}
-          {photos?.length > 1 && (
+          {photoCount > 1 && (
             <div className="flex gap-2 overflow-x-auto pb-1">
               {photos.map((p, i: number) => (
-                <div key={i} className="w-16 h-16 rounded-lg overflow-hidden bg-muted shrink-0">
+                <button key={p?.id ?? i} type="button" onClick={() => setCurrent(i)} aria-label={`Show photo ${i + 1}`} aria-current={i === current}
+                  className={`w-16 h-16 rounded-lg overflow-hidden bg-muted shrink-0 border-2 transition ${
+                    i === current ? 'border-teal-600' : 'border-transparent opacity-70 hover:opacity-100'
+                  }`}>
                   {p?.id || p?.data ? <img src={p?.id ? `/api/photos/${p.id}?size=thumb` : p.data ?? ''} alt="" className="w-full h-full object-cover" /> : null}
-                </div>
+                </button>
               ))}
             </div>
           )}
@@ -185,6 +246,33 @@ export function ItemViewModal({ item, currency = 'USD', onClose }: ItemViewModal
           </div>
         </div>
       </div>
+
+      {fullscreen && mainPhotoUrl && (
+        <div className="fixed inset-0 z-[60] bg-black/95 flex items-center justify-center"
+          role="dialog" aria-modal="true" aria-label="Photo viewer"
+          onClick={e => { e.stopPropagation(); setFullscreen(false); }}
+          onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+          <img src={mainPhotoUrl} alt={`${item?.name ?? 'Item'} photo ${current + 1} of ${photoCount}`}
+            className="max-w-full max-h-full object-contain select-none" onClick={e => e.stopPropagation()} />
+          <button type="button" onClick={e => { e.stopPropagation(); setFullscreen(false); }} aria-label="Close photo viewer"
+            className="absolute top-3 right-3 p-2 rounded-full bg-white/10 text-white hover:bg-white/20">
+            <X className="w-6 h-6" />
+          </button>
+          {photoCount > 1 && (
+            <>
+              <button type="button" onClick={e => { e.stopPropagation(); prev(); }} aria-label="Previous photo"
+                className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 text-white hover:bg-white/20">
+                <ChevronLeft className="w-7 h-7" />
+              </button>
+              <button type="button" onClick={e => { e.stopPropagation(); next(); }} aria-label="Next photo"
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 text-white hover:bg-white/20">
+                <ChevronRight className="w-7 h-7" />
+              </button>
+              <span className="absolute bottom-4 left-1/2 -translate-x-1/2 text-sm px-3 py-1 rounded-full bg-white/10 text-white">{current + 1} / {photoCount}</span>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
