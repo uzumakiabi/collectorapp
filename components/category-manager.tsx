@@ -1,16 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useId, useRef } from 'react';
 import { X, Plus, Trash2, Tag, PlusCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useModalA11y } from '@/hooks/use-modal-a11y';
+import type { Category } from '@/types/collection';
 
-export function CategoryManager({ categories, onClose }: { categories: any[]; onClose: () => void }) {
+export function CategoryManager({ categories, onClose }: { categories: Category[]; onClose: () => void }) {
   const [newCatName, setNewCatName] = useState('');
   const [creating, setCreating] = useState(false);
   const [expandedCatId, setExpandedCatId] = useState<string | null>(null);
   const [newFieldName, setNewFieldName] = useState('');
   const [addingField, setAddingField] = useState(false);
-  const [localCategories, setLocalCategories] = useState(categories ?? []);
+  const [localCategories, setLocalCategories] = useState<Category[]>(categories ?? []);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const uid = useId();
+  useModalA11y(panelRef, onClose);
 
   const handleCreateCategory = async () => {
     if (!newCatName?.trim()) return;
@@ -44,7 +49,7 @@ export function CategoryManager({ categories, onClose }: { categories: any[]; on
     try {
       await fetch(`/api/categories/${id}`, { method: 'DELETE' });
       toast.success('Category deleted');
-      setLocalCategories(prev => (prev ?? []).filter((c: any) => c?.id !== id));
+      setLocalCategories(prev => (prev ?? []).filter((c) => c?.id !== id));
     } catch {
       toast.error('Failed to delete');
     }
@@ -95,10 +100,10 @@ export function CategoryManager({ categories, onClose }: { categories: any[]; on
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 sm:p-4">
-      <div className="bg-card w-full sm:max-w-md sm:rounded-xl rounded-t-2xl shadow-xl max-h-[92vh] sm:max-h-[85vh] overflow-y-auto">
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={`${uid}-title`} className="bg-card w-full sm:max-w-md sm:rounded-xl rounded-t-2xl shadow-xl max-h-[92vh] sm:max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-card z-10">
-          <h2 className="text-lg font-display font-semibold">Manage Categories</h2>
-          <button onClick={onClose} className="p-1 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
+          <h2 id={`${uid}-title`} className="text-lg font-display font-semibold">Manage Categories</h2>
+          <button onClick={onClose} aria-label="Close" className="p-1 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
         </div>
 
         <div className="p-4 space-y-2">
@@ -107,14 +112,15 @@ export function CategoryManager({ categories, onClose }: { categories: any[]; on
             <input value={newCatName} onChange={e => setNewCatName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleCreateCategory()}
               placeholder="New category name"
+              aria-label="New category name"
               className="flex-1 px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm focus:ring-2 focus:ring-primary/30 outline-none" />
-            <button onClick={handleCreateCategory} disabled={creating}
+            <button onClick={handleCreateCategory} disabled={creating} aria-label="Create category"
               className="px-3 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50">
               {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
             </button>
           </div>
 
-          {(localCategories ?? []).map((cat: any) => (
+          {(localCategories ?? []).map((cat) => (
             <div key={cat?.id} className="border border-border rounded-lg">
               <div className="flex items-center justify-between p-3">
                 <button onClick={() => setExpandedCatId(expandedCatId === cat?.id ? null : cat?.id)}
@@ -123,7 +129,7 @@ export function CategoryManager({ categories, onClose }: { categories: any[]; on
                   {cat?.name ?? ''}
                   <span className="text-xs text-muted-foreground">({cat?._count?.items ?? 0} items)</span>
                 </button>
-                <button onClick={() => handleDeleteCategory(cat?.id)}
+                <button onClick={() => handleDeleteCategory(cat?.id)} aria-label={`Delete category ${cat?.name ?? ''}`}
                   className="p-1 text-muted-foreground hover:text-red-500 transition">
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -132,10 +138,10 @@ export function CategoryManager({ categories, onClose }: { categories: any[]; on
               {expandedCatId === cat?.id && (
                 <div className="px-3 pb-3 border-t border-border pt-2">
                   <p className="text-xs text-muted-foreground mb-2">Custom Fields</p>
-                  {(cat?.customFields ?? []).map((field: any) => (
+                  {(cat?.customFields ?? []).map((field) => (
                     <div key={field?.id} className="flex items-center justify-between py-1">
                       <span className="text-sm text-foreground">{field?.name ?? ''}</span>
-                      <button onClick={() => handleDeleteField(cat.id, field.id)}
+                      <button onClick={() => handleDeleteField(cat.id, field.id)} aria-label={`Delete field ${field?.name ?? ''}`}
                         className="p-0.5 text-muted-foreground hover:text-red-500 transition">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -146,8 +152,9 @@ export function CategoryManager({ categories, onClose }: { categories: any[]; on
                       onChange={e => setNewFieldName(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && handleAddField(cat.id)}
                       placeholder="Field name"
+                      aria-label={`New field name for ${cat?.name ?? 'category'}`}
                       className="flex-1 px-2 py-1 rounded border border-input bg-background text-sm outline-none focus:ring-1 focus:ring-primary" />
-                    <button onClick={() => handleAddField(cat.id)} disabled={addingField}
+                    <button onClick={() => handleAddField(cat.id)} disabled={addingField} aria-label="Add field"
                       className="p-1 text-teal-600 hover:text-teal-700 transition">
                       <PlusCircle className="w-4 h-4" />
                     </button>

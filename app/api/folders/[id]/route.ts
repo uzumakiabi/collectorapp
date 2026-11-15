@@ -9,7 +9,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const userId = (session.user as any).id;
+    const userId = session.user.id;
     const folder = await prisma.folder.findFirst({ where: { id: params.id, userId, folderType: 'CUSTOM' } });
     if (!folder) return NextResponse.json({ error: 'Not found or cannot delete category folders' }, { status: 404 });
     await prisma.folder.delete({ where: { id: folder.id } });

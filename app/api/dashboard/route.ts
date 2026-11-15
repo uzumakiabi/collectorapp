@@ -9,16 +9,28 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const userId = (session.user as any).id;
+    const userId = session.user.id;
 
     const items = await prisma.item.findMany({
       where: { userId },
-      include: { category: true },
+      select: {
+        id: true,
+        name: true,
+        price: true,
+        purchasePrice: true,
+        createdAt: true,
+        category: { select: { name: true } },
+      },
       orderBy: { createdAt: 'desc' },
     });
 
     const totalItems = items.length;
     const totalValue = items.reduce((sum, it) => sum + (it.price ?? 0), 0);
+    const totalCost = items.reduce((sum, it) => sum + (it.purchasePrice ?? 0), 0);
+    const totalGain = items.reduce(
+      (sum, it) => sum + (it.price != null && it.purchasePrice != null ? it.price - it.purchasePrice : 0),
+      0
+    );
 
     // Recent additions (last 5)
     const recentAdditions = items.slice(0, 5).map(it => ({
@@ -29,15 +41,31 @@ export async function GET() {
       createdAt: it.createdAt,
     }));
 
-    // Collection value over time (cumulative by month)
+    // Collection value over time (latest known price per item, by month)
+    const history = await prisma.priceHistory.findMany({
+      where: { item: { userId } },
+      select: { price: true, recordedAt: true, itemId: true },
+      orderBy: { recordedAt: 'asc' },
+    });
+
+    const events = history.map((h) => ({ itemId: h.itemId, price: h.price, recordedAt: h.recordedAt }));
+    const itemsWithHistory = new Set(history.map((h) => h.itemId));
+    for (const it of items) {
+      if (it.price != null && !itemsWithHistory.has(it.id)) {
+        events.push({ itemId: it.id, price: it.price, recordedAt: it.createdAt });
+      }
+    }
+    events.sort((a, b) => a.recordedAt.getTime() - b.recordedAt.getTime());
+
+    const latestPriceByItem = new Map<string, number>();
     const valueByMonth = new Map<string, number>();
-    const sortedByDate = [...items].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-    let running = 0;
-    for (const it of sortedByDate) {
-      const d = new Date(it.createdAt);
+    for (const event of events) {
+      latestPriceByItem.set(event.itemId, event.price);
+      const d = new Date(event.recordedAt);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      running += it.price ?? 0;
-      valueByMonth.set(key, running);
+      let monthValue = 0;
+      for (const price of latestPriceByItem.values()) monthValue += price;
+      valueByMonth.set(key, monthValue);
     }
     const valueOverTime = Array.from(valueByMonth.entries()).map(([month, value]) => ({ month, value: Math.round(value * 100) / 100 }));
 
@@ -71,6 +99,8 @@ export async function GET() {
     return NextResponse.json({
       totalItems,
       totalValue: Math.round(totalValue * 100) / 100,
+      totalCost: Math.round(totalCost * 100) / 100,
+      totalGain: Math.round(totalGain * 100) / 100,
       recentAdditions,
       valueOverTime,
       valueByCategory,

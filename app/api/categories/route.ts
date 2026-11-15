@@ -9,7 +9,7 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const userId = (session.user as any).id;
+    const userId = session.user.id;
     const categories = await prisma.category.findMany({
       where: { userId },
       include: { customFields: true, _count: { select: { items: true } } },
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const userId = (session.user as any).id;
+    const userId = session.user.id;
     const { name } = await request.json();
     if (!name?.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 });
 

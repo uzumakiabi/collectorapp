@@ -10,7 +10,7 @@ const nextConfig = {
     serverComponentsExternalPackages: ['pdfkit', 'fontkit', 'png-js', 'linebreak'],
   },
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
   typescript: {
     ignoreBuildErrors: false,

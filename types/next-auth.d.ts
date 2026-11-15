@@ -13,13 +13,15 @@ declare module 'next-auth' {
   interface User extends DefaultUser {
     id: string;
     role?: string;
+    tokenVersion?: number;
     // Mirror any fields added to Session['user'] above
   }
 }
 
 declare module 'next-auth/jwt' {
   interface JWT {
-    id: string;
+    id?: string;
     role?: string;
+    tokenVersion?: number;
   }
 }

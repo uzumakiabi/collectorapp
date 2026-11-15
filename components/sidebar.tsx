@@ -115,7 +115,7 @@ export function Sidebar({ categories, folders, selectedCategoryId, selectedFolde
                     <span className="truncate">{folder?.name ?? ''}</span>
                     <span className="text-xs text-muted-foreground ml-auto">{folder?._count?.folderItems ?? 0}</span>
                   </button>
-                  <button onClick={() => { if (confirm('Delete this folder?')) onDeleteFolder(folder.id); }}
+                  <button onClick={() => { if (confirm('Delete this folder?')) onDeleteFolder(folder.id); }} aria-label={`Delete folder ${folder?.name ?? ''}`}
                     className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 transition">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -126,9 +126,10 @@ export function Sidebar({ categories, folders, selectedCategoryId, selectedFolde
                   <input value={newFolderName} onChange={e => setNewFolderName(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && handleCreateFolder()}
                     placeholder="Folder name" autoFocus
+                    aria-label="New folder name"
                     className="flex-1 text-sm px-2 py-1 rounded border border-input bg-background outline-none focus:ring-1 focus:ring-primary" />
                   <button onClick={handleCreateFolder} className="text-teal-600 hover:text-teal-700 text-xs font-medium">Add</button>
-                  <button onClick={() => setShowNewFolder(false)} className="text-muted-foreground hover:text-foreground">
+                  <button onClick={() => setShowNewFolder(false)} aria-label="Cancel new folder" className="text-muted-foreground hover:text-foreground">
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>

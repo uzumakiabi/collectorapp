@@ -21,6 +21,11 @@ const CATEGORY_CUSTOM_FIELDS: Record<string, { name: string; fieldType: string }
 };
 
 async function main() {
+  if (process.env.NODE_ENV === 'production') {
+    console.log('Skipping demo user seed in production');
+    return;
+  }
+
   const hashedPassword = await bcrypt.hash('johndoe123', 10);
   const user = await prisma.user.upsert({
     where: { email: 'john@doe.com' },

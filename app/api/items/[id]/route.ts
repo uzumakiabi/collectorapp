@@ -4,18 +4,20 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { validatePhotos } from '@/lib/validate-photos';
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const userId = (session.user as any).id;
+    const userId = session.user.id;
     const item = await prisma.item.findFirst({
       where: { id: params.id, userId },
       include: {
         photos: { orderBy: { order: 'asc' } },
         category: { include: { customFields: true } },
         folderItems: { include: { folder: true } },
+        priceHistory: { orderBy: { recordedAt: 'asc' } },
       },
     });
     if (!item) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -30,71 +32,118 @@ export async function PUT(request: Request, { params }: { params: { id: string }
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const userId = (session.user as any).id;
+    const userId = session.user.id;
     const existing = await prisma.item.findFirst({ where: { id: params.id, userId } });
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
     const body = await request.json();
-    const { name, description, price, condition, categoryId, customValues, photos, folderIds } = body;
+    const { name, description, price, purchasePrice, purchaseDate, condition, categoryId, customValues, photos, folderIds } = body;
 
-    // Replace photos
-    if (photos) {
-      await prisma.itemPhoto.deleteMany({ where: { itemId: params.id } });
+    if (categoryId) {
+      const category = await prisma.category.findFirst({ where: { id: categoryId, userId } });
+      if (!category) return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
     }
 
-    const item = await prisma.item.update({
-      where: { id: params.id },
-      data: {
-        name: name?.trim() ?? existing.name,
-        description: description ?? existing.description,
-        price: price !== undefined ? (price ? parseFloat(price) : null) : existing.price,
-        condition: condition ?? existing.condition,
-        categoryId: categoryId ?? existing.categoryId,
-        customValues: customValues ?? existing.customValues,
-        ...(photos ? {
-          photos: {
-            create: (photos ?? []).map((p: any, idx: number) => ({
-              data: p.data ?? null,
-              contentType: p.contentType ?? 'image/jpeg',
-              order: idx,
-            })),
-          },
-        } : {}),
-      },
-      include: { photos: true, category: true },
-    });
-
-    // Update category folder
-    if (categoryId && categoryId !== existing.categoryId) {
-      // Remove from old category folder
-      const oldFolder = await prisma.folder.findFirst({
-        where: { userId, categoryId: existing.categoryId, folderType: 'CATEGORY' },
-      });
-      if (oldFolder) {
-        await prisma.folderItem.deleteMany({ where: { folderId: oldFolder.id, itemId: params.id } });
-      }
-      // Add to new category folder
-      const newFolder = await prisma.folder.findFirst({
-        where: { userId, categoryId, folderType: 'CATEGORY' },
-      });
-      if (newFolder) {
-        await prisma.folderItem.create({
-          data: { folderId: newFolder.id, itemId: params.id },
-        }).catch(() => {});
-      }
-    }
-
-    // Update custom folder assignments
+    let customFolderIds: string[] | undefined;
     if (folderIds !== undefined) {
-      await prisma.folderItem.deleteMany({
-        where: { itemId: params.id, folder: { folderType: 'CUSTOM' } },
-      });
-      for (const fId of (folderIds ?? [])) {
-        await prisma.folderItem.create({
-          data: { folderId: fId, itemId: params.id },
-        }).catch(() => {});
+      if (!Array.isArray(folderIds) || folderIds.some((fId: any) => typeof fId !== 'string')) {
+        return NextResponse.json({ error: 'Invalid folder' }, { status: 400 });
+      }
+      customFolderIds = Array.from(new Set(folderIds));
+      if (customFolderIds.length > 0) {
+        const folders = await prisma.folder.findMany({
+          where: { id: { in: customFolderIds }, userId, folderType: 'CUSTOM' },
+          select: { id: true },
+        });
+        if (folders.length !== customFolderIds.length) {
+          return NextResponse.json({ error: 'Invalid folder' }, { status: 400 });
+        }
       }
     }
+
+    const photoError = validatePhotos(photos);
+    if (photoError) return NextResponse.json({ error: photoError }, { status: 400 });
+
+    let purchaseDateValue: Date | null | undefined = undefined;
+    if (purchaseDate !== undefined) {
+      if (purchaseDate === null || purchaseDate === '') {
+        purchaseDateValue = null;
+      } else {
+        const parsedDate = new Date(purchaseDate);
+        if (Number.isNaN(parsedDate.getTime())) {
+          return NextResponse.json({ error: 'Invalid purchase date' }, { status: 400 });
+        }
+        purchaseDateValue = parsedDate;
+      }
+    }
+
+    const parsedPrice = price !== undefined ? (price ? parseFloat(price) : null) : existing.price;
+
+    const item = await prisma.$transaction(async (tx) => {
+      if (photos) {
+        await tx.itemPhoto.deleteMany({ where: { itemId: params.id } });
+      }
+
+      const updated = await tx.item.update({
+        where: { id: params.id },
+        data: {
+          name: name?.trim() ?? existing.name,
+          description: description ?? existing.description,
+          price: parsedPrice,
+          purchasePrice: purchasePrice !== undefined ? (purchasePrice ? parseFloat(purchasePrice) : null) : existing.purchasePrice,
+          purchaseDate: purchaseDateValue !== undefined ? purchaseDateValue : existing.purchaseDate,
+          condition: condition ?? existing.condition,
+          categoryId: categoryId ?? existing.categoryId,
+          customValues: customValues ?? existing.customValues,
+          ...(photos ? {
+            photos: {
+              create: (photos ?? []).map((p: any, idx: number) => ({
+                data: p.data ?? null,
+                contentType: p.contentType ?? 'image/jpeg',
+                order: idx,
+              })),
+            },
+          } : {}),
+        },
+        include: { photos: true, category: true },
+      });
+
+      if (parsedPrice != null && parsedPrice !== existing.price) {
+        await tx.priceHistory.create({ data: { price: parsedPrice, itemId: params.id } });
+      }
+
+      if (categoryId && categoryId !== existing.categoryId) {
+        const oldFolder = await tx.folder.findFirst({
+          where: { userId, categoryId: existing.categoryId, folderType: 'CATEGORY' },
+        });
+        if (oldFolder) {
+          await tx.folderItem.deleteMany({ where: { folderId: oldFolder.id, itemId: params.id } });
+        }
+        const newFolder = await tx.folder.findFirst({
+          where: { userId, categoryId, folderType: 'CATEGORY' },
+        });
+        if (newFolder) {
+          await tx.folderItem.createMany({
+            data: [{ folderId: newFolder.id, itemId: params.id }],
+            skipDuplicates: true,
+          });
+        }
+      }
+
+      if (customFolderIds !== undefined) {
+        await tx.folderItem.deleteMany({
+          where: { itemId: params.id, folder: { folderType: 'CUSTOM' } },
+        });
+        if (customFolderIds.length > 0) {
+          await tx.folderItem.createMany({
+            data: customFolderIds.map((fId) => ({ folderId: fId, itemId: params.id })),
+            skipDuplicates: true,
+          });
+        }
+      }
+
+      return updated;
+    });
 
     return NextResponse.json(item);
   } catch (error: any) {
@@ -107,7 +156,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const userId = (session.user as any).id;
+    const userId = session.user.id;
     const item = await prisma.item.findFirst({
       where: { id: params.id, userId },
       include: { photos: true },

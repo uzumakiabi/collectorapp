@@ -48,6 +48,7 @@ export function AppShell({
             variant="ghost"
             size="icon"
             className="lg:hidden"
+            aria-label="Open sidebar"
             onClick={() => setSidebarOpen(true)}
           >
             <PanelLeft className="h-5 w-5" />

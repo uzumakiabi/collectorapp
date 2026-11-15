@@ -1,42 +1,55 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useId, useRef } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { Sidebar } from './sidebar';
-import { ItemGrid } from './item-grid';
+import { ItemGrid, CONDITIONS } from './item-grid';
 import { ItemModal } from './item-modal';
 import { ItemViewModal } from './item-view-modal';
 import { DashboardWidget } from './dashboard-widget';
 import { BatchUploadModal } from './batch-upload-modal';
 import { ExportModal } from './export-modal';
+import { ImportModal } from './import-modal';
 import { CategoryManager } from './category-manager';
 import {
-  Package, Plus, Upload, Download, Search, SortAsc, SortDesc, LogOut, Menu, X, LayoutGrid, BarChart3, User
+  Package, Plus, Upload, Download, FileUp, Search, SortAsc, SortDesc, LogOut, Menu, X, LayoutGrid, BarChart3, User, Loader2
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { useModalA11y } from '@/hooks/use-modal-a11y';
+import type { Category, Folder, Item } from '@/types/collection';
 
 export function DashboardLayout() {
   const { data: session, status } = useSession() || {};
   const router = useRouter();
-  const [items, setItems] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [folders, setFolders] = useState<any[]>([]);
+  const [items, setItems] = useState<Item[]>([]);
+  const [total, setTotal] = useState(0);
+  const [nextOffset, setNextOffset] = useState<number | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
   const [currency, setCurrency] = useState('USD');
   const [avatar, setAvatar] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [condition, setCondition] = useState('');
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  const [debouncedMinPrice, setDebouncedMinPrice] = useState('');
+  const [debouncedMaxPrice, setDebouncedMaxPrice] = useState('');
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [showItemModal, setShowItemModal] = useState(false);
-  const [editingItem, setEditingItem] = useState<any>(null);
-  const [viewingItem, setViewingItem] = useState<any>(null);
+  const [editingItem, setEditingItem] = useState<Item | null>(null);
+  const [viewingItem, setViewingItem] = useState<Item | null>(null);
   const [showBatchUpload, setShowBatchUpload] = useState(false);
   const [showExport, setShowExport] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [showCategories, setShowCategories] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -54,24 +67,67 @@ export function DashboardLayout() {
     } catch { /* silent */ }
   }, []);
 
+  const buildParams = useCallback((nextOffsetValue: number) => {
+    const params = new URLSearchParams();
+    if (selectedCategoryId) params.set('categoryId', selectedCategoryId);
+    if (selectedFolderId) params.set('folderId', selectedFolderId);
+    if (debouncedSearch) params.set('search', debouncedSearch);
+    if (condition) params.set('condition', condition);
+    if (debouncedMinPrice) params.set('minPrice', debouncedMinPrice);
+    if (debouncedMaxPrice) params.set('maxPrice', debouncedMaxPrice);
+    params.set('sortBy', sortBy);
+    params.set('sortDir', sortDir);
+    params.set('offset', String(nextOffsetValue));
+    params.set('limit', '48');
+    return params;
+  }, [selectedCategoryId, selectedFolderId, debouncedSearch, condition, debouncedMinPrice, debouncedMaxPrice, sortBy, sortDir]);
+
   const fetchItems = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (selectedCategoryId) params.set('categoryId', selectedCategoryId);
-      if (selectedFolderId) params.set('folderId', selectedFolderId);
-      if (search) params.set('search', search);
-      params.set('sortBy', sortBy);
-      params.set('sortDir', sortDir);
-      const res = await fetch(`/api/items?${params.toString()}`);
+      const res = await fetch(`/api/items?${buildParams(0).toString()}`);
       const data = await res.json();
-      setItems(Array.isArray(data) ? data : []);
+      setItems(Array.isArray(data?.items) ? data.items : []);
+      setTotal(typeof data?.total === 'number' ? data.total : 0);
+      setNextOffset(data?.nextOffset ?? null);
     } catch {
       setItems([]);
+      setTotal(0);
+      setNextOffset(null);
     } finally {
       setLoading(false);
     }
-  }, [selectedCategoryId, selectedFolderId, search, sortBy, sortDir]);
+  }, [buildParams]);
+
+  const loadMore = async () => {
+    if (nextOffset == null || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const res = await fetch(`/api/items?${buildParams(nextOffset).toString()}`);
+      const data = await res.json();
+      const more = Array.isArray(data?.items) ? data.items : [];
+      setItems(prev => [...(prev ?? []), ...more]);
+      setTotal(typeof data?.total === 'number' ? data.total : 0);
+      setNextOffset(data?.nextOffset ?? null);
+    } catch {
+      toast.error('Failed to load more items');
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedMinPrice(minPrice);
+      setDebouncedMaxPrice(maxPrice);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [minPrice, maxPrice]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
   useEffect(() => { fetchItems(); }, [fetchItems]);
@@ -103,13 +159,27 @@ export function DashboardLayout() {
     }
   };
 
-  const handleEditItem = (item: any) => {
-    setEditingItem(item);
-    setShowItemModal(true);
+  const handleEditItem = async (item: Item) => {
+    try {
+      const res = await fetch(`/api/items/${item.id}`);
+      if (!res.ok) throw new Error('Failed');
+      const full = await res.json();
+      setEditingItem(full);
+      setShowItemModal(true);
+    } catch {
+      toast.error('Failed to load item');
+    }
   };
 
-  const handleViewItem = (item: any) => {
-    setViewingItem(item);
+  const handleViewItem = async (item: Item) => {
+    try {
+      const res = await fetch(`/api/items/${item.id}`);
+      if (!res.ok) throw new Error('Failed');
+      const full = await res.json();
+      setViewingItem(full);
+    } catch {
+      toast.error('Failed to load item');
+    }
   };
 
   const handleSaved = () => {
@@ -141,9 +211,9 @@ export function DashboardLayout() {
   };
 
   const currentTitle = selectedFolderId
-    ? (folders ?? []).find((f: any) => f?.id === selectedFolderId)?.name ?? 'Folder'
+    ? (folders ?? []).find((f) => f?.id === selectedFolderId)?.name ?? 'Folder'
     : selectedCategoryId
-      ? (categories ?? []).find((c: any) => c?.id === selectedCategoryId)?.name ?? 'Category'
+      ? (categories ?? []).find((c) => c?.id === selectedCategoryId)?.name ?? 'Category'
       : 'All Items';
 
   if (status === 'loading') {
@@ -191,7 +261,7 @@ export function DashboardLayout() {
         <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border">
           <div className="flex items-center justify-between px-4 py-3 max-w-[1200px] mx-auto w-full">
             <div className="flex items-center gap-3">
-              <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 hover:bg-muted rounded-lg">
+              <button onClick={() => setSidebarOpen(true)} aria-label="Open menu" className="lg:hidden p-2 hover:bg-muted rounded-lg">
                 <Menu className="w-5 h-5" />
               </button>
               <div className="flex items-center gap-2">
@@ -200,14 +270,14 @@ export function DashboardLayout() {
               </div>
             </div>
             <div className="flex items-center gap-1.5 sm:gap-2">
-              <Link href="/profile" className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden border border-border hover:ring-2 hover:ring-teal-600/30 transition shrink-0" title="Profile">
+              <Link href="/profile" aria-label="Profile" className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden border border-border hover:ring-2 hover:ring-teal-600/30 transition shrink-0" title="Profile">
                 {avatar ? (
                   <Image src={`/avatars/${avatar}`} alt="Profile" fill className="object-cover" />
                 ) : (
                   <User className="w-5 h-5 m-auto text-muted-foreground" />
                 )}
               </Link>
-              <button onClick={() => signOut()} className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground transition" title="Sign Out">
+              <button onClick={() => signOut()} aria-label="Sign out" className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground transition" title="Sign Out">
                 <LogOut className="w-5 h-5" />
               </button>
             </div>
@@ -221,7 +291,7 @@ export function DashboardLayout() {
               <div className="flex items-center gap-2">
                 <LayoutGrid className="w-5 h-5 text-teal-600" />
                 <h2 className="text-xl font-display font-semibold tracking-tight">{currentTitle}</h2>
-                <span className="text-sm text-muted-foreground">({items?.length ?? 0} items)</span>
+                <span className="text-sm text-muted-foreground">({total} items)</span>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <button onClick={() => { setEditingItem(null); setShowItemModal(true); }}
@@ -236,6 +306,10 @@ export function DashboardLayout() {
                   className="inline-flex items-center gap-1.5 px-3 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-lg text-sm font-medium transition">
                   <Download className="w-4 h-4" /> Export
                 </button>
+                <button onClick={() => setShowImport(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-lg text-sm font-medium transition">
+                  <FileUp className="w-4 h-4" /> Import
+                </button>
               </div>
             </div>
 
@@ -246,6 +320,7 @@ export function DashboardLayout() {
                 <input
                   type="text" value={search} onChange={e => setSearch(e.target.value)}
                   placeholder="Search items..."
+                  aria-label="Search items"
                   className="w-full pl-10 pr-4 py-2 rounded-lg border border-input bg-background text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition"
                 />
               </div>
@@ -260,6 +335,23 @@ export function DashboardLayout() {
                   </button>
                 ))}
               </div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <select value={condition} onChange={e => setCondition(e.target.value)} aria-label="Filter by condition"
+                  className="px-2 py-1.5 rounded-lg border border-input bg-background text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition">
+                  <option value="">All conditions</option>
+                  {Object.keys(CONDITIONS).map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <input type="number" step="0.01" value={minPrice} onChange={e => setMinPrice(e.target.value)} placeholder="Min" aria-label="Minimum price"
+                  className="w-20 px-2 py-1.5 rounded-lg border border-input bg-background text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition" />
+                <input type="number" step="0.01" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} placeholder="Max" aria-label="Maximum price"
+                  className="w-20 px-2 py-1.5 rounded-lg border border-input bg-background text-foreground text-sm focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition" />
+                {(condition || minPrice || maxPrice) && (
+                  <button onClick={() => { setCondition(''); setMinPrice(''); setMaxPrice(''); }}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 text-sm transition">
+                    <X className="w-3 h-3" /> Clear
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -268,6 +360,15 @@ export function DashboardLayout() {
         <div className="flex-1 px-4 py-4">
           <div className="max-w-[1200px] mx-auto w-full">
             <ItemGrid items={items} loading={loading} onEdit={handleEditItem} onDelete={handleDeleteItem} onView={handleViewItem} currency={currency} />
+            {nextOffset != null && (
+              <div className="flex justify-center mt-4">
+                <button onClick={loadMore} disabled={loadingMore}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-lg text-sm font-medium transition disabled:opacity-50">
+                  {loadingMore && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {loadingMore ? 'Loading...' : 'Load more'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -277,7 +378,7 @@ export function DashboardLayout() {
         <ItemModal
           item={editingItem}
           categories={categories}
-          folders={folders?.filter?.((f: any) => f?.folderType === 'CUSTOM') ?? []}
+          folders={folders?.filter?.((f) => f?.folderType === 'CUSTOM') ?? []}
           onClose={() => { setShowItemModal(false); setEditingItem(null); }}
           onSaved={handleSaved}
           defaultCategoryId={selectedCategoryId}
@@ -304,6 +405,12 @@ export function DashboardLayout() {
           onClose={() => setShowExport(false)}
         />
       )}
+      {showImport && (
+        <ImportModal
+          onClose={() => setShowImport(false)}
+          onDone={() => { fetchItems(); fetchData(); }}
+        />
+      )}
       {showCategories && (
         <CategoryManager
           categories={categories}
@@ -311,20 +418,30 @@ export function DashboardLayout() {
         />
       )}
       {showDashboard && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4" onClick={() => setShowDashboard(false)}>
-          <div className="bg-background w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-3xl sm:rounded-xl shadow-xl overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="sticky top-0 z-10 bg-background border-b border-border flex items-center justify-between px-4 py-3">
-              <h2 className="text-lg font-display font-semibold text-foreground flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-teal-600" /> Dashboard
-              </h2>
-              <button onClick={() => setShowDashboard(false)} className="p-1.5 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
-            </div>
-            <div className="p-4">
-              <DashboardWidget currency={currency} />
-            </div>
-          </div>
-        </div>
+        <DashboardPopup currency={currency} onClose={() => setShowDashboard(false)} />
       )}
+    </div>
+  );
+}
+
+function DashboardPopup({ currency, onClose }: { currency: string; onClose: () => void }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const uid = useId();
+  useModalA11y(panelRef, onClose);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4" onClick={onClose}>
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={`${uid}-title`} className="bg-background w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-3xl sm:rounded-xl shadow-xl overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="sticky top-0 z-10 bg-background border-b border-border flex items-center justify-between px-4 py-3">
+          <h2 id={`${uid}-title`} className="text-lg font-display font-semibold text-foreground flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-teal-600" /> Dashboard
+          </h2>
+          <button onClick={onClose} aria-label="Close" className="p-1.5 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="p-4">
+          <DashboardWidget currency={currency} />
+        </div>
+      </div>
     </div>
   );
 }

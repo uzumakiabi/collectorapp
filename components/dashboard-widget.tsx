@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Package, DollarSign, Clock, TrendingUp, Loader2 } from 'lucide-react';
+import { Package, DollarSign, Clock, TrendingUp, TrendingDown, Wallet, Loader2 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
@@ -14,6 +14,8 @@ const PIE_COLORS = ['#0d9488', '#14b8a6', '#2dd4bf', '#5eead4', '#99f6e4', '#0f7
 interface DashboardData {
   totalItems: number;
   totalValue: number;
+  totalCost: number;
+  totalGain: number;
   recentAdditions: { id: string; name: string; price: number | null; category: string; createdAt: string }[];
   valueOverTime: { month: string; value: number }[];
   valueByCategory: { name: string; value: number }[];
@@ -80,6 +82,26 @@ export function DashboardWidget({ currency = 'USD' }: { currency?: string }) {
           <div>
             <p className="text-xs text-muted-foreground">Collection Value</p>
             <p className="text-2xl font-display font-bold text-foreground">{fmt(data.totalValue)}</p>
+          </div>
+        </div>
+        <div className="bg-card rounded-xl p-4 border border-border/50 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+            <Wallet className="w-5 h-5 text-amber-600" />
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Total Cost</p>
+            <p className="text-2xl font-display font-bold text-foreground">{fmt(data.totalCost ?? 0)}</p>
+          </div>
+        </div>
+        <div className="bg-card rounded-xl p-4 border border-border/50 flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${(data.totalGain ?? 0) >= 0 ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
+            {(data.totalGain ?? 0) >= 0
+              ? <TrendingUp className="w-5 h-5 text-emerald-600" />
+              : <TrendingDown className="w-5 h-5 text-red-600" />}
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Gain/Loss</p>
+            <p className={`text-2xl font-display font-bold ${(data.totalGain ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{fmt(data.totalGain ?? 0)}</p>
           </div>
         </div>
         <div className="bg-card rounded-xl p-4 border border-border/50 flex items-center gap-3 min-w-0">

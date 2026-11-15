@@ -9,7 +9,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const userId = (session.user as any).id;
+    const userId = session.user.id;
     const cat = await prisma.category.findFirst({ where: { id: params.id, userId } });
     if (!cat) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
@@ -35,12 +35,15 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const userId = (session.user as any).id;
+    const userId = session.user.id;
     const cat = await prisma.category.findFirst({ where: { id: params.id, userId } });
     if (!cat) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
     const { fieldId } = await request.json();
-    await prisma.customFieldDef.delete({ where: { id: fieldId } });
+    if (!fieldId) return NextResponse.json({ error: 'fieldId required' }, { status: 400 });
+
+    const result = await prisma.customFieldDef.deleteMany({ where: { id: fieldId, categoryId: cat.id } });
+    if (result.count === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('Delete field error:', error);

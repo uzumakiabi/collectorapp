@@ -11,7 +11,7 @@ export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const userId = (session.user as any).id;
+    const userId = session.user.id;
     const { categoryId, folderId, includePhotos } = await request.json();
 
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { currency: true } });
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
       columns.push({ header: ck, key: `custom_${ck}`, width: 15 });
     }
     if (includePhotos) {
-      columns.push({ header: 'Photo URLs', key: 'photoUrls', width: 40 });
+      columns.push({ header: 'Photos', key: 'photos', width: 10 });
     }
     sheet.columns = columns;
 
@@ -83,8 +83,8 @@ export async function POST(request: Request) {
       for (const ck of customKeys) {
         row[`custom_${ck}`] = cv[ck] ?? '';
       }
-      if (includePhotos && item?.photos?.length > 0) {
-        row.photoUrls = (item.photos ?? []).map((p: any) => p.data ?? '').filter(Boolean).join('\n');
+      if (includePhotos) {
+        row.photos = item?.photos?.length ?? 0;
       }
       sheet.addRow(row);
     }

@@ -19,6 +19,7 @@ model User {
   onboarded        Boolean   @default(true)
   resetToken       String?   @unique
   resetTokenExpiry DateTime?
+  tokenVersion     Int       @default(0)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   items            Item[]
@@ -52,24 +53,40 @@ model CustomFieldDef {
 }
 
 model Item {
-  id           String       @id @default(cuid())
-  name         String
-  description  String?
-  price        Float?
-  condition    String?
-  categoryId   String
-  category     Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  userId       String
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  customValues Json?        @default("{}")
-  photos       ItemPhoto[]
-  folderItems  FolderItem[]
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  id            String         @id @default(cuid())
+  name          String
+  description   String?
+  price         Float?
+  purchasePrice Float?
+  purchaseDate  DateTime?
+  condition     String?
+  categoryId    String
+  category      Category       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customValues  Json?          @default("{}")
+  photos        ItemPhoto[]
+  folderItems   FolderItem[]
+  priceHistory  PriceHistory[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   @@index([userId])
   @@index([categoryId])
   @@index([userId, categoryId])
+  @@index([userId, createdAt])
+  @@index([userId, price])
+  @@index([userId, name])
+}
+
+model PriceHistory {
+  id         String   @id @default(cuid())
+  price      Float
+  recordedAt DateTime @default(now())
+  itemId     String
+  item       Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId, recordedAt])
 }
 
 model ItemPhoto {

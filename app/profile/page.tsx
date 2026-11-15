@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useId, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Package, Lock, Eye, EyeOff, Loader2, ArrowLeft, User, Moon, Sun, Check } from 'lucide-react';
+import { signOut } from 'next-auth/react';
+import { Package, Lock, Eye, EyeOff, Loader2, ArrowLeft, User, Moon, Sun, Check, Download } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
@@ -29,6 +30,7 @@ export default function ProfilePage() {
   const [pwSuccess, setPwSuccess] = useState(false);
   const [pwLoading, setPwLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
+  const uid = useId();
 
   useEffect(() => {
     (async () => {
@@ -87,8 +89,8 @@ export default function ProfilePage() {
       setPwError('New passwords do not match');
       return;
     }
-    if (newPassword.length < 6) {
-      setPwError('New password must be at least 6 characters');
+    if (newPassword.length < 8) {
+      setPwError('New password must be at least 8 characters');
       return;
     }
     setPwLoading(true);
@@ -107,6 +109,7 @@ export default function ProfilePage() {
       setCurrentPassword('');
       setNewPassword('');
       setConfirm('');
+      setTimeout(() => signOut({ callbackUrl: '/login' }), 1500);
     } catch {
       setPwError('Something went wrong');
     } finally {
@@ -130,7 +133,7 @@ export default function ProfilePage() {
             <ArrowLeft className="w-4 h-4" /> Back
           </Link>
           <div className="flex items-center gap-2">
-            <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground transition" title="Toggle theme">
+            <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label="Toggle theme" className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground transition" title="Toggle theme">
               {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
           </div>
@@ -153,22 +156,22 @@ export default function ProfilePage() {
             </div>
           )}
           <div>
-            <label className="text-sm font-medium text-foreground mb-1 block">Name</label>
-            <input value={name} onChange={e => setName(e.target.value)}
+            <label htmlFor={`${uid}-name`} className="text-sm font-medium text-foreground mb-1 block">Name</label>
+            <input id={`${uid}-name`} value={name} onChange={e => setName(e.target.value)}
               className="w-full px-3 py-2.5 rounded-lg border border-input bg-background text-foreground focus:ring-2 focus:ring-primary/30 outline-none transition"
               placeholder="Your name" />
           </div>
           <div>
-            <label className="text-sm font-medium text-foreground mb-1 block">About me</label>
-            <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3}
+            <label htmlFor={`${uid}-bio`} className="text-sm font-medium text-foreground mb-1 block">About me</label>
+            <textarea id={`${uid}-bio`} value={bio} onChange={e => setBio(e.target.value)} rows={3}
               className="w-full px-3 py-2.5 rounded-lg border border-input bg-background text-foreground focus:ring-2 focus:ring-primary/30 outline-none transition resize-none"
               placeholder="Write a short description about yourself" />
           </div>
           <div>
-            <label className="text-sm font-medium text-foreground mb-2 block">Avatar</label>
+            <p className="text-sm font-medium text-foreground mb-2 block">Avatar</p>
             <div className="flex flex-wrap gap-3">
               {AVATAR_OPTIONS.map(a => (
-                <button key={a} type="button" onClick={() => setAvatar(a)}
+                <button key={a} type="button" onClick={() => setAvatar(a)} aria-label={`Use avatar ${a}`}
                   className={`w-16 h-16 rounded-full overflow-hidden transition border-2 ${
                     avatar === a ? 'border-teal-600 ring-2 ring-teal-600/30' : 'border-border hover:border-muted-foreground'
                   }`}>
@@ -204,34 +207,44 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* Data */}
+        <div className="bg-card rounded-xl p-6 shadow-lg space-y-3 mb-4">
+          <h2 className="text-sm font-semibold text-foreground">Data</h2>
+          <p className="text-xs text-muted-foreground">Download a JSON backup of your collection, categories and folders.</p>
+          <a href="/api/backup" download
+            className="w-full py-2.5 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-lg font-medium transition inline-flex items-center justify-center gap-2">
+            <Download className="w-4 h-4" /> Download backup
+          </a>
+        </div>
+
         {/* Change password */}
         <form onSubmit={changePassword} className="bg-card rounded-xl p-6 shadow-lg space-y-4">
           <h2 className="text-sm font-semibold text-foreground">Change Password</h2>
           {pwError && <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm p-3 rounded-lg">{pwError}</div>}
           {pwSuccess && <div className="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-sm p-3 rounded-lg">Password changed successfully!</div>}
           <div>
-            <label className="text-sm font-medium text-foreground mb-1 block">Current Password</label>
+            <label htmlFor={`${uid}-current-password`} className="text-sm font-medium text-foreground mb-1 block">Current Password</label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input type={showPw ? 'text' : 'password'} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)}
+              <input id={`${uid}-current-password`} type={showPw ? 'text' : 'password'} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)}
                 className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-input bg-background text-foreground focus:ring-2 focus:ring-primary/30 outline-none transition"
                 placeholder="Enter current password" required />
             </div>
           </div>
           <div>
-            <label className="text-sm font-medium text-foreground mb-1 block">New Password</label>
+            <label htmlFor={`${uid}-new-password`} className="text-sm font-medium text-foreground mb-1 block">New Password</label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input type={showPw ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)}
+              <input id={`${uid}-new-password`} type={showPw ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)}
                 className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-input bg-background text-foreground focus:ring-2 focus:ring-primary/30 outline-none transition"
                 placeholder="Enter new password" required />
             </div>
           </div>
           <div>
-            <label className="text-sm font-medium text-foreground mb-1 block">Confirm New Password</label>
+            <label htmlFor={`${uid}-confirm-password`} className="text-sm font-medium text-foreground mb-1 block">Confirm New Password</label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input type={showPw ? 'text' : 'password'} value={confirm} onChange={e => setConfirm(e.target.value)}
+              <input id={`${uid}-confirm-password`} type={showPw ? 'text' : 'password'} value={confirm} onChange={e => setConfirm(e.target.value)}
                 className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-input bg-background text-foreground focus:ring-2 focus:ring-primary/30 outline-none transition"
                 placeholder="Confirm new password" required />
             </div>

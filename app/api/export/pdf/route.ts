@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const userId = (session.user as any).id;
+    const userId = session.user.id;
     const { categoryId, folderId, includePhotos } = await request.json();
 
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { currency: true } });
@@ -102,17 +102,6 @@ export async function POST(request: Request) {
         ? dataUrlToBuffer(item.photos[0].data)
         : null;
 
-      // Estimate row height based on description length
-      const descLines = Math.max(1, Math.ceil(description.length / 40));
-      const rowH = Math.max(rowHeight, 20 + descLines * 10, photoBuf ? 64 : rowHeight);
-
-      ensureSpace(rowH);
-      const y = doc.y;
-
-      // Row background
-      doc.rect(startX, y, pageWidth, rowH).fill('#f8fafc');
-
-      let x = startX;
       const cells = [
         ...(includePhotos ? [photoBuf ? '' : ''] : []),
         item?.name ?? '',
@@ -121,6 +110,21 @@ export async function POST(request: Request) {
         item?.price != null ? symbol + Number(item.price).toFixed(2) : '-',
         description,
       ];
+
+      doc.font('Helvetica').fontSize(9);
+      let rowH = rowHeight;
+      cells.forEach((cell, i) => {
+        rowH = Math.max(rowH, doc.heightOfString(cell, { width: colWidths[i] - 8 }) + 12);
+      });
+      if (photoBuf) rowH = Math.max(rowH, 64);
+
+      ensureSpace(rowH);
+      const y = doc.y;
+
+      // Row background
+      doc.rect(startX, y, pageWidth, rowH).fill('#f8fafc');
+
+      let x = startX;
       cells.forEach((cell, i) => {
         doc.fillColor('#333333').font('Helvetica').fontSize(9)
           .text(cell, x + 4, y + 6, { width: colWidths[i] - 8 });

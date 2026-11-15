@@ -1,29 +1,44 @@
 'use client';
 
-import { useState } from 'react';
-import { X, FileText, Sheet, Loader2, Download } from 'lucide-react';
+import { useId, useRef, useState } from 'react';
+import { X, FileText, Sheet, FileSpreadsheet, Loader2, Download } from 'lucide-react';
 import { toast } from 'sonner';
+import { useModalA11y } from '@/hooks/use-modal-a11y';
 
 export function ExportModal({ categoryId, folderId, onClose }: { categoryId: string | null; folderId: string | null; onClose: () => void }) {
-  const [format, setFormat] = useState<'pdf' | 'excel'>('pdf');
+  const [format, setFormat] = useState<'pdf' | 'excel' | 'csv'>('pdf');
   const [includePhotos, setIncludePhotos] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const uid = useId();
+  useModalA11y(panelRef, onClose);
 
   const handleExport = async () => {
     setExporting(true);
     try {
-      const url = format === 'pdf' ? '/api/export/pdf' : '/api/export/excel';
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ categoryId, folderId, includePhotos }),
-      });
+      let res: Response;
+      let filename: string;
+      if (format === 'csv') {
+        const params = new URLSearchParams();
+        if (categoryId) params.set('categoryId', categoryId);
+        if (folderId) params.set('folderId', folderId);
+        res = await fetch(`/api/export/csv?${params.toString()}`);
+        filename = 'collection.csv';
+      } else {
+        const url = format === 'pdf' ? '/api/export/pdf' : '/api/export/excel';
+        res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ categoryId, folderId, includePhotos }),
+        });
+        filename = format === 'pdf' ? 'collection-export.pdf' : 'collection-export.xlsx';
+      }
       if (!res.ok) throw new Error('Export failed');
       const blob = await res.blob();
       const downloadUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = downloadUrl;
-      a.download = format === 'pdf' ? 'collection-export.pdf' : 'collection-export.xlsx';
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -39,15 +54,15 @@ export function ExportModal({ categoryId, folderId, onClose }: { categoryId: str
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 sm:p-4">
-      <div className="bg-card w-full sm:max-w-sm sm:rounded-xl rounded-t-2xl shadow-xl">
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={`${uid}-title`} className="bg-card w-full sm:max-w-sm sm:rounded-xl rounded-t-2xl shadow-xl">
         <div className="flex items-center justify-between p-4 border-b border-border">
-          <h2 className="text-lg font-display font-semibold">Export Collection</h2>
-          <button onClick={onClose} className="p-1 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
+          <h2 id={`${uid}-title`} className="text-lg font-display font-semibold">Export Collection</h2>
+          <button onClick={onClose} aria-label="Close" className="p-1 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
         </div>
         <div className="p-4 space-y-4">
           <div>
-            <label className="text-sm font-medium text-foreground block mb-2">Format</label>
-            <div className="grid grid-cols-2 gap-2">
+            <p className="text-sm font-medium text-foreground block mb-2">Format</p>
+            <div className="grid grid-cols-3 gap-2">
               <button onClick={() => setFormat('pdf')}
                 className={`flex items-center gap-2 px-3 py-3 rounded-lg border-2 text-sm font-medium transition ${
                   format === 'pdf' ? 'border-teal-600 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400' : 'border-border hover:border-muted-foreground'
@@ -60,12 +75,18 @@ export function ExportModal({ categoryId, folderId, onClose }: { categoryId: str
                 }`}>
                 <Sheet className="w-5 h-5" /> Excel
               </button>
+              <button onClick={() => setFormat('csv')}
+                className={`flex items-center gap-2 px-3 py-3 rounded-lg border-2 text-sm font-medium transition ${
+                  format === 'csv' ? 'border-teal-600 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400' : 'border-border hover:border-muted-foreground'
+                }`}>
+                <FileSpreadsheet className="w-5 h-5" /> CSV
+              </button>
             </div>
           </div>
 
           <div className="flex items-center justify-between">
-            <label className="text-sm font-medium text-foreground">Include photos</label>
-            <button onClick={() => setIncludePhotos(!includePhotos)}
+            <p className="text-sm font-medium text-foreground">Include photos</p>
+            <button onClick={() => setIncludePhotos(!includePhotos)} aria-label="Include photos" aria-pressed={includePhotos}
               className={`relative w-10 h-5 rounded-full transition ${includePhotos ? 'bg-teal-600' : 'bg-muted'}`}>
               <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${includePhotos ? 'translate-x-5' : ''}`} />
             </button>

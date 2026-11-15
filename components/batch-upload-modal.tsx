@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useId, useRef } from 'react';
 import { X, ChevronLeft, ChevronRight, Camera, Loader2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { fileToBase64 } from '@/lib/image';
+import { useModalA11y } from '@/hooks/use-modal-a11y';
+import type { Category } from '@/types/collection';
 
 const CONDITIONS = ['Mint', 'Near Mint', 'Good', 'Fair', 'Poor'];
 
@@ -20,12 +22,15 @@ interface BatchItem {
   saved: boolean;
 }
 
-export function BatchUploadModal({ categories, onClose, onDone }: { categories: any[]; onClose: () => void; onDone: () => void }) {
+export function BatchUploadModal({ categories, onClose, onDone }: { categories: Category[]; onClose: () => void; onDone: () => void }) {
   const [items, setItems] = useState<BatchItem[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [saving, setSaving] = useState(false);
   const [started, setStarted] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const uid = useId();
+  useModalA11y(panelRef, onClose);
 
   const handleSelectFiles = async (files: FileList | null) => {
     if (!files) return;
@@ -56,7 +61,7 @@ export function BatchUploadModal({ categories, onClose, onDone }: { categories: 
   };
 
   const current = items?.[currentIdx];
-  const selectedCat = (categories ?? []).find((c: any) => c?.id === current?.categoryId);
+  const selectedCat = (categories ?? []).find((c) => c?.id === current?.categoryId);
   const customFields = selectedCat?.customFields ?? [];
 
   const updateField = (field: string, value: any) => {
@@ -85,7 +90,7 @@ export function BatchUploadModal({ categories, onClose, onDone }: { categories: 
           condition: current.condition || null,
           categoryId: current.categoryId,
           customValues: current.customValues ?? {},
-          photos: [{ data: current.data ?? null, contentType: current.file.type || 'image/jpeg' }],
+          photos: current.data ? [{ data: current.data, contentType: current.file.type || 'image/jpeg' }] : [],
         }),
       });
 
@@ -118,10 +123,10 @@ export function BatchUploadModal({ categories, onClose, onDone }: { categories: 
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 sm:p-4">
-      <div className="bg-card w-full sm:max-w-2xl sm:rounded-xl rounded-t-2xl shadow-xl max-h-[92vh] sm:max-h-[90vh] overflow-y-auto">
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={`${uid}-title`} className="bg-card w-full sm:max-w-2xl sm:rounded-xl rounded-t-2xl shadow-xl max-h-[92vh] sm:max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-card z-10">
-          <h2 className="text-lg font-display font-semibold">Batch Add Items</h2>
-          <button onClick={() => { if (savedCount > 0) handleFinish(); else onClose(); }} className="p-1 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
+          <h2 id={`${uid}-title`} className="text-lg font-display font-semibold">Batch Add Items</h2>
+          <button onClick={() => { if (savedCount > 0) handleFinish(); else onClose(); }} aria-label="Close" className="p-1 hover:bg-muted rounded-lg"><X className="w-5 h-5" /></button>
         </div>
 
         {!started ? (
@@ -135,7 +140,7 @@ export function BatchUploadModal({ categories, onClose, onDone }: { categories: 
               className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition inline-flex items-center gap-2">
               <Camera className="w-4 h-4" /> Choose Photos
             </button>
-            <input ref={fileRef} type="file" accept="image/*" multiple onChange={e => handleSelectFiles(e.target.files)} className="hidden" />
+            <input ref={fileRef} type="file" accept="image/*" multiple aria-label="Choose photos" onChange={e => handleSelectFiles(e.target.files)} className="hidden" />
           </div>
         ) : (
           <>
@@ -168,27 +173,27 @@ export function BatchUploadModal({ categories, onClose, onDone }: { categories: 
                   {/* Form */}
                   <div className="flex-1 space-y-3">
                     <div>
-                      <label className="text-xs font-medium text-foreground block mb-0.5">Name *</label>
-                      <input value={current.name} onChange={e => updateField('name', e.target.value)}
+                      <label htmlFor={`${uid}-name`} className="text-xs font-medium text-foreground block mb-0.5">Name *</label>
+                      <input id={`${uid}-name`} value={current.name} onChange={e => updateField('name', e.target.value)}
                         className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm focus:ring-2 focus:ring-primary/30 outline-none" placeholder="Item name" />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-foreground block mb-0.5">Category *</label>
-                      <select value={current.categoryId} onChange={e => { updateField('categoryId', e.target.value); updateField('customValues', {}); }}
+                      <label htmlFor={`${uid}-category`} className="text-xs font-medium text-foreground block mb-0.5">Category *</label>
+                      <select id={`${uid}-category`} value={current.categoryId} onChange={e => { updateField('categoryId', e.target.value); updateField('customValues', {}); }}
                         className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm focus:ring-2 focus:ring-primary/30 outline-none">
                         <option value="">Select</option>
-                        {(categories ?? []).map((c: any) => <option key={c?.id} value={c?.id}>{c?.name}</option>)}
+                        {(categories ?? []).map((c) => <option key={c?.id} value={c?.id}>{c?.name}</option>)}
                       </select>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="text-xs font-medium text-foreground block mb-0.5">Price</label>
-                        <input type="number" step="0.01" value={current.price} onChange={e => updateField('price', e.target.value)}
+                        <label htmlFor={`${uid}-price`} className="text-xs font-medium text-foreground block mb-0.5">Price</label>
+                        <input id={`${uid}-price`} type="number" step="0.01" value={current.price} onChange={e => updateField('price', e.target.value)}
                           className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm focus:ring-2 focus:ring-primary/30 outline-none" placeholder="0.00" />
                       </div>
                       <div>
-                        <label className="text-xs font-medium text-foreground block mb-0.5">Condition</label>
-                        <select value={current.condition} onChange={e => updateField('condition', e.target.value)}
+                        <label htmlFor={`${uid}-condition`} className="text-xs font-medium text-foreground block mb-0.5">Condition</label>
+                        <select id={`${uid}-condition`} value={current.condition} onChange={e => updateField('condition', e.target.value)}
                           className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm focus:ring-2 focus:ring-primary/30 outline-none">
                           <option value="">Select</option>
                           {CONDITIONS.map(c => <option key={c} value={c}>{c}</option>)}
@@ -196,15 +201,15 @@ export function BatchUploadModal({ categories, onClose, onDone }: { categories: 
                       </div>
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-foreground block mb-0.5">Description</label>
-                      <textarea value={current.description} onChange={e => updateField('description', e.target.value)} rows={2}
+                      <label htmlFor={`${uid}-description`} className="text-xs font-medium text-foreground block mb-0.5">Description</label>
+                      <textarea id={`${uid}-description`} value={current.description} onChange={e => updateField('description', e.target.value)} rows={2}
                         className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm focus:ring-2 focus:ring-primary/30 outline-none resize-none" />
                     </div>
                     {/* Custom fields */}
-                    {(customFields ?? []).map((field: any) => (
+                    {(customFields ?? []).map((field) => (
                       <div key={field?.id}>
-                        <label className="text-xs font-medium text-muted-foreground block mb-0.5">{field?.name ?? ''}</label>
-                        <input value={current?.customValues?.[field?.name ?? ''] ?? ''}
+                        <label htmlFor={`${uid}-field-${field?.id}`} className="text-xs font-medium text-muted-foreground block mb-0.5">{field?.name ?? ''}</label>
+                        <input id={`${uid}-field-${field?.id}`} value={current?.customValues?.[field?.name ?? ''] ?? ''}
                           onChange={e => updateField('customValues', { ...(current?.customValues ?? {}), [field?.name ?? '']: e.target.value })}
                           className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm focus:ring-2 focus:ring-primary/30 outline-none"
                           placeholder={field?.name ?? ''} />

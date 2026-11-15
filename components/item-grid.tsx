@@ -3,8 +3,9 @@
 import { Edit, Trash2, ImageIcon, Eye } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getCurrencySymbol } from '@/lib/currency';
+import type { Item } from '@/types/collection';
 
-const CONDITIONS: Record<string, string> = {
+export const CONDITIONS: Record<string, string> = {
   'Mint': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
   'Near Mint': 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
   'Good': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
@@ -13,11 +14,11 @@ const CONDITIONS: Record<string, string> = {
 };
 
 interface ItemGridProps {
-  items: any[];
+  items: Item[];
   loading: boolean;
-  onEdit: (item: any) => void;
+  onEdit: (item: Item) => void;
   onDelete: (id: string) => void;
-  onView: (item: any) => void;
+  onView: (item: Item) => void;
   currency?: string;
 }
 
@@ -52,14 +53,14 @@ export function ItemGrid({ items, loading, onEdit, onDelete, onView, currency = 
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-      {(items ?? []).map((item: any, idx: number) => (
+      {(items ?? []).map((item: Item, idx: number) => (
         <ItemCard key={item?.id ?? idx} item={item} index={idx} onEdit={onEdit} onDelete={onDelete} onView={onView} currency={currency} />
       ))}
     </div>
   );
 }
 
-function ItemCard({ item, index, onEdit, onDelete, onView, currency }: { item: any; index: number; onEdit: (item: any) => void; onDelete: (id: string) => void; onView: (item: any) => void; currency?: string }) {
+function ItemCard({ item, index, onEdit, onDelete, onView, currency }: { item: Item; index: number; onEdit: (item: Item) => void; onDelete: (id: string) => void; onView: (item: Item) => void; currency?: string }) {
   const photoUrl = item?.photos?.[0]?.data ?? null;
   const symbol = getCurrencySymbol(currency ?? 'USD');
 
@@ -74,22 +75,24 @@ function ItemCard({ item, index, onEdit, onDelete, onView, currency }: { item: a
     >
       {/* Photo */}
       <div className="aspect-square bg-muted relative overflow-hidden">
-        {photoUrl ? (
-          <img src={photoUrl} alt={item?.name ?? 'Item'} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <ImageIcon className="w-10 h-10 text-muted-foreground/40" />
-          </div>
-        )}
+        <button type="button" onClick={() => onView(item)} aria-label={`View ${item?.name ?? 'item'}`} className="block w-full h-full">
+          {photoUrl ? (
+            <img src={photoUrl} alt={item?.name ?? 'Item'} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <ImageIcon className="w-10 h-10 text-muted-foreground/40" />
+            </div>
+          )}
+        </button>
         {/* Hover actions */}
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
-          <button onClick={() => onView(item)} className="p-2 bg-white rounded-full shadow hover:bg-gray-100 transition" title="View">
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors hidden [@media(hover:hover)]:flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100">
+          <button onClick={() => onView(item)} aria-label={`View ${item?.name ?? 'item'}`} className="p-2 bg-white rounded-full shadow hover:bg-gray-100 transition" title="View">
             <Eye className="w-4 h-4 text-gray-700" />
           </button>
-          <button onClick={() => onEdit(item)} className="p-2 bg-white rounded-full shadow hover:bg-gray-100 transition" title="Edit">
+          <button onClick={() => onEdit(item)} aria-label={`Edit ${item?.name ?? 'item'}`} className="p-2 bg-white rounded-full shadow hover:bg-gray-100 transition" title="Edit">
             <Edit className="w-4 h-4 text-gray-700" />
           </button>
-          <button onClick={() => onDelete(item?.id)} className="p-2 bg-white rounded-full shadow hover:bg-red-50 transition" title="Delete">
+          <button onClick={() => onDelete(item?.id)} aria-label={`Delete ${item?.name ?? 'item'}`} className="p-2 bg-white rounded-full shadow hover:bg-red-50 transition" title="Delete">
             <Trash2 className="w-4 h-4 text-red-500" />
           </button>
         </div>
@@ -114,6 +117,17 @@ function ItemCard({ item, index, onEdit, onDelete, onView, currency }: { item: a
             {Number(item.price).toFixed(2)}
           </div>
         )}
+        <div className="flex items-center gap-1 mt-2 [@media(hover:hover)]:hidden">
+          <button onClick={() => onView(item)} aria-label={`View ${item?.name ?? 'item'}`} className="p-1.5 rounded-lg bg-muted hover:bg-muted/80 transition">
+            <Eye className="w-4 h-4 text-muted-foreground" />
+          </button>
+          <button onClick={() => onEdit(item)} aria-label={`Edit ${item?.name ?? 'item'}`} className="p-1.5 rounded-lg bg-muted hover:bg-muted/80 transition">
+            <Edit className="w-4 h-4 text-muted-foreground" />
+          </button>
+          <button onClick={() => onDelete(item?.id)} aria-label={`Delete ${item?.name ?? 'item'}`} className="p-1.5 rounded-lg bg-muted hover:bg-red-50 transition">
+            <Trash2 className="w-4 h-4 text-red-500" />
+          </button>
+        </div>
       </div>
     </motion.div>
   );
