@@ -17,6 +17,13 @@ const { getServerSession, prismaMock } = vi.hoisted(() => ({
 vi.mock('next-auth', () => ({ getServerSession }));
 vi.mock('@/lib/auth', () => ({ authOptions: {} }));
 vi.mock('@/lib/prisma', () => ({ prisma: prismaMock }));
+vi.mock('@/lib/photo-processing', () => ({
+  processPhoto: vi.fn(async ({ data, contentType }: { data: string; contentType?: string }) => ({
+    data,
+    contentType: contentType ?? 'image/jpeg',
+    thumbnail: 'thumb',
+  })),
+}));
 vi.mock('@/lib/currency', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/currency')>();
   return {

@@ -5,17 +5,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getCurrencySymbol } from '@/lib/currency';
+import { toJpegBuffer } from '@/lib/photo-processing';
 import PDFDocument from 'pdfkit';
-
-function dataUrlToBuffer(dataUrl: string): Buffer | null {
-  try {
-    const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-    if (!match) return null;
-    return Buffer.from(match[2], 'base64');
-  } catch {
-    return null;
-  }
-}
 
 export async function POST(request: Request) {
   try {
@@ -36,7 +27,7 @@ export async function POST(request: Request) {
         where: { folderId },
         include: {
           item: {
-            include: { photos: { orderBy: { order: 'asc' } }, category: true },
+            include: { photos: { orderBy: { order: 'asc' }, take: 1, select: { thumbnail: true, data: true } }, category: true },
           },
         },
       });
@@ -44,10 +35,19 @@ export async function POST(request: Request) {
     } else {
       items = await prisma.item.findMany({
         where,
-        include: { photos: { orderBy: { order: 'asc' } }, category: true },
+        include: { photos: { orderBy: { order: 'asc' }, take: 1, select: { thumbnail: true, data: true } }, category: true },
         orderBy: { createdAt: 'desc' },
       });
     }
+
+    const photoBuffers: (Buffer | null)[] = includePhotos
+      ? await Promise.all(
+          (items ?? []).map((item: any) => {
+            const source = item?.photos?.[0]?.thumbnail ?? item?.photos?.[0]?.data;
+            return source ? toJpegBuffer(source, 200) : Promise.resolve(null);
+          })
+        )
+      : [];
 
     const doc = new PDFDocument({ margin: 40, size: 'A4' });
     const chunks: Buffer[] = [];
@@ -90,7 +90,7 @@ export async function POST(request: Request) {
 
     drawHeader();
 
-    for (const item of (items ?? [])) {
+    for (const [index, item] of (items ?? []).entries()) {
       const customVals = item?.customValues ?? {};
       const customStr = Object.entries(customVals ?? {})
         .filter(([, v]: any) => v)
@@ -98,9 +98,7 @@ export async function POST(request: Request) {
         .join(' | ');
       const description = ((item?.description ?? '') + (customStr ? `\n${customStr}` : '')).trim();
 
-      const photoBuf = includePhotos && item?.photos?.[0]?.data
-        ? dataUrlToBuffer(item.photos[0].data)
-        : null;
+      const photoBuf = includePhotos ? photoBuffers[index] ?? null : null;
 
       const cells = [
         ...(includePhotos ? [photoBuf ? '' : ''] : []),

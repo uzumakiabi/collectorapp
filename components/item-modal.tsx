@@ -81,7 +81,7 @@ export function ItemModal({ item, categories, folders, onClose, onSaved, default
       const objectUrl = URL.createObjectURL(file);
       try {
         const data = await fileToBase64(file);
-        newPhotos.push({ file, objectUrl, data, contentType: file.type || 'image/jpeg' });
+        newPhotos.push({ file, objectUrl, data, contentType: data.match(/^data:([^;,]+)/)?.[1] ?? 'image/jpeg' });
       } catch {
         newPhotos.push({ file, objectUrl, contentType: file.type || 'image/jpeg' });
       }

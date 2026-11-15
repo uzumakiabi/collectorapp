@@ -93,6 +93,7 @@ model PriceHistory {
 model ItemPhoto {
   id          String  @id @default(cuid())
   data        String?
+  thumbnail   String?
   contentType String  @default("image/jpeg")
   order       Int     @default(0)
   itemId      String

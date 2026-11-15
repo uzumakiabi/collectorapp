@@ -1,4 +1,4 @@
-export async function fileToBase64(file: File, maxDim = 1000, quality = 0.8): Promise<string> {
+export async function fileToBase64(file: File, maxDim = 1000, quality = 0.75): Promise<string> {
   const dataUrl = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
@@ -25,8 +25,11 @@ export async function fileToBase64(file: File, maxDim = 1000, quality = 0.8): Pr
   canvas.height = height;
   const ctx = canvas.getContext('2d');
   if (!ctx) return dataUrl;
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, width, height);
   ctx.drawImage(img, 0, 0, width, height);
 
-  const isPng = file.type === 'image/png';
-  return canvas.toDataURL(isPng ? 'image/png' : 'image/jpeg', isPng ? undefined : quality);
+  const webp = canvas.toDataURL('image/webp', quality);
+  if (webp.startsWith('data:image/webp')) return webp;
+  return canvas.toDataURL('image/jpeg', quality);
 }

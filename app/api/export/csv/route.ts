@@ -24,7 +24,7 @@ export async function GET(request: Request) {
         where: { folderId },
         include: {
           item: {
-            include: { photos: { orderBy: { order: 'asc' } }, category: true },
+            include: { category: true },
           },
         },
       });
@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     } else {
       items = await prisma.item.findMany({
         where,
-        include: { photos: { orderBy: { order: 'asc' } }, category: true },
+        include: { category: true },
         orderBy: { createdAt: 'desc' },
       });
     }

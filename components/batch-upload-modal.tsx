@@ -13,6 +13,7 @@ interface BatchItem {
   file: File;
   objectUrl: string;
   data?: string;
+  contentType: string;
   name: string;
   description: string;
   price: string;
@@ -46,6 +47,7 @@ export function BatchUploadModal({ categories, onClose, onDone }: { categories: 
         file,
         objectUrl,
         data,
+        contentType: data?.match(/^data:([^;,]+)/)?.[1] ?? (file.type || 'image/jpeg'),
         name: '',
         description: '',
         price: '',
@@ -90,7 +92,7 @@ export function BatchUploadModal({ categories, onClose, onDone }: { categories: 
           condition: current.condition || null,
           categoryId: current.categoryId,
           customValues: current.customValues ?? {},
-          photos: current.data ? [{ data: current.data, contentType: current.file.type || 'image/jpeg' }] : [],
+          photos: current.data ? [{ data: current.data, contentType: current.contentType }] : [],
         }),
       });
 

@@ -36,6 +36,7 @@ export function ItemViewModal({ item, currency = 'USD', onClose }: ItemViewModal
       .map((code) => `${getCurrencySymbol(code)}${convertWithRates(value, baseCurrency, code, rates ?? {}).toFixed(2)}`)
       .join(' · ');
   const photos = item?.photos ?? [];
+  const mainPhotoUrl = photos?.[0]?.id ? `/api/photos/${photos[0].id}` : photos?.[0]?.data ?? null;
   const customValues = item?.customValues ?? {};
   const customEntries = Object.entries(customValues ?? {}).filter(([, v]: any) => v);
   const condClass = CONDITION_STYLES[item?.condition ?? ''] ?? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400';
@@ -56,8 +57,8 @@ export function ItemViewModal({ item, currency = 'USD', onClose }: ItemViewModal
         <div className="p-4 space-y-4">
           {/* Photo */}
           <div className="aspect-square bg-muted rounded-lg overflow-hidden flex items-center justify-center">
-            {photos?.[0]?.data ? (
-              <img src={photos[0].data} alt={item?.name ?? 'Item'} className="w-full h-full object-cover" />
+            {mainPhotoUrl ? (
+              <img src={mainPhotoUrl} alt={item?.name ?? 'Item'} loading="eager" className="w-full h-full object-cover" />
             ) : (
               <ImageIcon className="w-16 h-16 text-muted-foreground/40" />
             )}
@@ -68,7 +69,7 @@ export function ItemViewModal({ item, currency = 'USD', onClose }: ItemViewModal
             <div className="flex gap-2 overflow-x-auto pb-1">
               {photos.map((p, i: number) => (
                 <div key={i} className="w-16 h-16 rounded-lg overflow-hidden bg-muted shrink-0">
-                  {p?.data ? <img src={p.data} alt="" className="w-full h-full object-cover" /> : null}
+                  {p?.id || p?.data ? <img src={p?.id ? `/api/photos/${p.id}?size=thumb` : p.data ?? ''} alt="" className="w-full h-full object-cover" /> : null}
                 </div>
               ))}
             </div>

@@ -6,6 +6,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { CURRENCIES, convertWithRates, getLiveRates } from '@/lib/currency';
 import { validatePhotos } from '@/lib/validate-photos';
+import { processPhoto } from '@/lib/photo-processing';
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   try {
@@ -69,6 +70,10 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     const photoError = validatePhotos(photos);
     if (photoError) return NextResponse.json({ error: photoError }, { status: 400 });
 
+    const processedPhotos = photos
+      ? await Promise.all((photos ?? []).map((p: any) => processPhoto({ data: p.data, contentType: p.contentType })))
+      : null;
+
     let purchaseDateValue: Date | null | undefined = undefined;
     if (purchaseDate !== undefined) {
       if (purchaseDate === null || purchaseDate === '') {
@@ -117,9 +122,10 @@ export async function PUT(request: Request, { params }: { params: { id: string }
           customValues: customValues ?? existing.customValues,
           ...(photos ? {
             photos: {
-              create: (photos ?? []).map((p: any, idx: number) => ({
-                data: p.data ?? null,
-                contentType: p.contentType ?? 'image/jpeg',
+              create: (processedPhotos ?? []).map((p, idx: number) => ({
+                data: p.data,
+                contentType: p.contentType,
+                thumbnail: p.thumbnail,
                 order: idx,
               })),
             },

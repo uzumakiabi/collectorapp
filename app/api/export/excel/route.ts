@@ -26,7 +26,7 @@ export async function POST(request: Request) {
         where: { folderId },
         include: {
           item: {
-            include: { photos: { orderBy: { order: 'asc' } }, category: true },
+            include: { _count: { select: { photos: true } }, category: true },
           },
         },
       });
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     } else {
       items = await prisma.item.findMany({
         where,
-        include: { photos: { orderBy: { order: 'asc' } }, category: true },
+        include: { _count: { select: { photos: true } }, category: true },
         orderBy: { createdAt: 'desc' },
       });
     }
@@ -84,7 +84,7 @@ export async function POST(request: Request) {
         row[`custom_${ck}`] = cv[ck] ?? '';
       }
       if (includePhotos) {
-        row.photos = item?.photos?.length ?? 0;
+        row.photos = item?._count?.photos ?? 0;
       }
       sheet.addRow(row);
     }

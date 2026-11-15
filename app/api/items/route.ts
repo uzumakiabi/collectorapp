@@ -6,6 +6,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { CURRENCIES, convertWithRates, getLiveRates } from '@/lib/currency';
 import { validatePhotos } from '@/lib/validate-photos';
+import { processPhoto } from '@/lib/photo-processing';
 
 export async function GET(request: Request) {
   try {
@@ -56,7 +57,7 @@ export async function GET(request: Request) {
     const [items, total] = await Promise.all([
       prisma.item.findMany({
         where,
-        include: { photos: { orderBy: { order: 'asc' }, take: 1 }, category: true },
+        include: { photos: { orderBy: { order: 'asc' }, take: 1, select: { id: true } }, category: true },
         orderBy,
         skip: offset,
         take: limit,
@@ -109,6 +110,10 @@ export async function POST(request: Request) {
     const photoError = validatePhotos(photos);
     if (photoError) return NextResponse.json({ error: photoError }, { status: 400 });
 
+    const processedPhotos = await Promise.all(
+      (photos ?? []).map((p: any) => processPhoto({ data: p.data, contentType: p.contentType }))
+    );
+
     let purchaseDateValue: Date | null = null;
     if (purchaseDate !== undefined && purchaseDate !== null && purchaseDate !== '') {
       const parsedDate = new Date(purchaseDate);
@@ -143,9 +148,10 @@ export async function POST(request: Request) {
           userId,
           customValues: customValues ?? {},
           photos: {
-            create: (photos ?? []).map((p: any, idx: number) => ({
-              data: p.data ?? null,
-              contentType: p.contentType ?? 'image/jpeg',
+            create: processedPhotos.map((p, idx: number) => ({
+              data: p.data,
+              contentType: p.contentType,
+              thumbnail: p.thumbnail,
               order: idx,
             })),
           },

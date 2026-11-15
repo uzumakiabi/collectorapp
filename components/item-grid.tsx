@@ -61,7 +61,7 @@ export function ItemGrid({ items, loading, onEdit, onDelete, onView, currency = 
 }
 
 function ItemCard({ item, index, onEdit, onDelete, onView, currency }: { item: Item; index: number; onEdit: (item: Item) => void; onDelete: (id: string) => void; onView: (item: Item) => void; currency?: string }) {
-  const photoUrl = item?.photos?.[0]?.data ?? null;
+  const photoUrl = item?.photos?.[0]?.id ? `/api/photos/${item.photos[0].id}?size=thumb` : null;
   const symbol = getCurrencySymbol(currency ?? 'USD');
 
   const condClass = CONDITIONS[item?.condition ?? ''] ?? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400';
@@ -77,7 +77,7 @@ function ItemCard({ item, index, onEdit, onDelete, onView, currency }: { item: I
       <div className="aspect-square bg-muted relative overflow-hidden">
         <button type="button" onClick={() => onView(item)} aria-label={`View ${item?.name ?? 'item'}`} className="block w-full h-full">
           {photoUrl ? (
-            <img src={photoUrl} alt={item?.name ?? 'Item'} className="w-full h-full object-cover" />
+            <img src={photoUrl} alt={item?.name ?? 'Item'} loading="lazy" decoding="async" className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
               <ImageIcon className="w-10 h-10 text-muted-foreground/40" />
